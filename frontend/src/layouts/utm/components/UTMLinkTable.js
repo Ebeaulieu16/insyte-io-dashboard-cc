@@ -7,6 +7,7 @@
 */
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -28,6 +29,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import InfoIcon from "@mui/icons-material/Info";
 import NoDataIcon from "@mui/icons-material/InfoOutlined";
+import AnalyticsIcon from "@mui/icons-material/Analytics";
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
@@ -81,6 +83,7 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 }));
 
 function UTMLinkTable({ dateRange }) {
+  const navigate = useNavigate();
   const [links, setLinks] = useState([]);
   const [filteredLinks, setFilteredLinks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,6 +129,11 @@ function UTMLinkTable({ dateRange }) {
 
   // Calculate base domain for UTM links
   const baseDomain = process.env.REACT_APP_BASE_URL || "https://yourdomain.com";
+
+  // Handle row click to navigate to Deep View
+  const handleRowClick = (slug) => {
+    navigate(`/deep-view/${slug}`);
+  };
 
   // Fetch UTM links data
   useEffect(() => {
@@ -319,13 +327,26 @@ function UTMLinkTable({ dateRange }) {
                   REVENUE
                 </VuiTypography>
               </TableCell>
+              <TableCell align="center">
+                <VuiTypography variant="caption" color="text" fontWeight="medium">
+                  ACTIONS
+                </VuiTypography>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredLinks.map((link) => (
               <TableRow
                 key={link.id}
-                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                sx={{ 
+                  '&:last-child td, &:last-child th': { border: 0 },
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(26, 31, 55, 0.7)'
+                  }
+                }}
+                onClick={() => handleRowClick(link.slug)}
               >
                 <TableCell component="th" scope="row">
                   <VuiTypography variant="button" color="white">
@@ -339,7 +360,10 @@ function UTMLinkTable({ dateRange }) {
                     </VuiTypography>
                     <IconButton 
                       size="small" 
-                      onClick={() => handleCopyLink(`${baseDomain}/go/${link.slug}`, link.id)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent row click when clicking copy button
+                        handleCopyLink(`${baseDomain}/go/${link.slug}`, link.id);
+                      }}
                       sx={{ color: copiedId === link.id ? colors.success.main : colors.text.main }}
                     >
                       <ContentCopyIcon fontSize="small" />
@@ -370,6 +394,19 @@ function UTMLinkTable({ dateRange }) {
                   <VuiTypography variant="button" color="success">
                     {formatCurrency(link.revenue)}
                   </VuiTypography>
+                </TableCell>
+                <TableCell align="center">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent row click when clicking the analytics button
+                      handleRowClick(link.slug);
+                    }}
+                    sx={{ color: colors.info.main }}
+                    title="View Deep Analytics"
+                  >
+                    <AnalyticsIcon fontSize="small" />
+                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}

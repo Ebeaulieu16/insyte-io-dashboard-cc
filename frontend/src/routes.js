@@ -45,6 +45,7 @@ import YouTube from "layouts/youtube";
 import UTMGenerator from "layouts/utm";
 import Integrations from "layouts/integrations";
 import Recommendations from "layouts/recommendations";
+import DeepView from "layouts/deepView";
 
 // No longer using these template views
 // import Tables from "layouts/tables";
@@ -113,6 +114,16 @@ const routes = [
     icon: <FaLightbulb size="15px" color="inherit" />,
     component: Recommendations,
     noCollapse: true,
+  },
+  // Hidden route - not shown in Sidenav
+  {
+    type: "collapse",
+    name: "Deep View",
+    key: "deep-view",
+    route: "/deep-view/:slug",
+    component: DeepView,
+    noCollapse: true,
+    display: "none", // Custom property to hide from Sidenav
   },
 ];
 

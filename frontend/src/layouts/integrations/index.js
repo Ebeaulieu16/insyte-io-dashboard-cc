@@ -1,28 +1,22 @@
 /*!
 
 =========================================================
-* Vision UI Free React - v1.0.0
+* Vision UI Free React - Integrations Page
 =========================================================
-
-* Product Page: https://www.creative-tim.com/product/vision-ui-free-react
-* Copyright 2021 Creative Tim (https://www.creative-tim.com/)
-* Licensed under MIT (https://github.com/creativetimofficial/vision-ui-free-react/blob/master LICENSE.md)
-
-* Design and Coded by Simmmple & Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 */
+
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 // @mui material components
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import Icon from "@mui/material/Icon";
-import { Switch } from "@mui/material";
-import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
+import Tooltip from "@mui/material/Tooltip";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
@@ -39,59 +33,171 @@ import typography from "assets/theme/base/typography";
 import colors from "assets/theme/base/colors";
 
 // React icons
-import { FaCreditCard, FaYoutube, FaCalendarAlt, FaLink } from "react-icons/fa";
-import { IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
+import { FaCreditCard, FaYoutube, FaCalendarAlt, FaSync, FaLink } from "react-icons/fa";
+import { SiCalDotCom } from "react-icons/si";
+import { IoCheckmarkCircle, IoCloseCircle, IoInformationCircle } from "react-icons/io5";
 
 // React Router
 import { Link } from "react-router-dom";
 
+// API utility
+import api from "utils/api";
+
 function Integrations() {
   const { gradients } = colors;
   const { cardContent } = gradients;
+  const location = useLocation();
 
-  // Integration connections status (this would come from an API in a real app)
-  const integrations = [
-    {
-      id: "stripe",
-      name: "Stripe",
-      description: "Payment processing for your courses and services",
-      connected: true,
-      connectedSince: "2023-05-15",
-      icon: <FaCreditCard size="30px" color="white" />,
-      status: "Active",
-      color: "success"
-    },
-    {
-      id: "youtube",
-      name: "YouTube",
-      description: "Connect your channel to track video performance",
-      connected: true,
-      connectedSince: "2023-06-22",
-      icon: <FaYoutube size="30px" color="white" />,
-      status: "Active",
-      color: "success"
-    },
-    {
-      id: "calendly",
-      name: "Calendly",
-      description: "Schedule calls and appointments automatically",
-      connected: false,
-      connectedSince: null,
-      icon: <FaCalendarAlt size="30px" color="white" />,
-      status: "Not Connected",
-      color: "error"
-    },
-    {
-      id: "calcom",
-      name: "Cal.com",
-      description: "Open-source alternative for scheduling meetings",
-      connected: true,
-      connectedSince: "2023-09-10",
-      icon: <FaCalendarAlt size="30px" color="white" />,
-      status: "Active",
-      color: "success"
+  // State for integrations status
+  const [integrations, setIntegrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState({ show: false, message: "", severity: "info" });
+
+  // Display URL parameters as alerts (for OAuth redirects)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    
+    if (params.has("success") && params.get("platform")) {
+      setAlert({
+        show: true,
+        message: `Successfully connected ${params.get("platform")}!`,
+        severity: "success"
+      });
+    } else if (params.has("error") && params.get("platform")) {
+      setAlert({
+        show: true,
+        message: `Error connecting ${params.get("platform")}: ${params.get("error")}`,
+        severity: "error"
+      });
     }
-  ];
+    
+    // Clear URL parameters after displaying alerts
+    if (params.toString()) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location]);
+
+  // Fetch integration status
+  useEffect(() => {
+    const fetchIntegrationStatus = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get("/api/integrations/status");
+        
+        // Map API response to integrations with UI properties
+        const integrationsList = response.data.integrations.map(integration => ({
+          id: integration.platform,
+          name: getPlatformName(integration.platform),
+          description: getPlatformDescription(integration.platform),
+          connected: integration.status === "connected",
+          connectedSince: integration.last_sync,
+          accountName: integration.account_name,
+          icon: getPlatformIcon(integration.platform),
+          status: integration.status === "connected" ? "Active" : "Not Connected",
+          color: integration.status === "connected" ? "success" : "error",
+          scopes: getPlatformScopes(integration.platform)
+        }));
+        
+        setIntegrations(integrationsList);
+      } catch (error) {
+        console.error("Failed to fetch integration status:", error);
+        setAlert({
+          show: true,
+          message: "Failed to fetch integration status",
+          severity: "error"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchIntegrationStatus();
+  }, []);
+
+  // Helper functions for platform metadata
+  const getPlatformName = (platform) => {
+    const names = {
+      youtube: "YouTube",
+      stripe: "Stripe",
+      calendly: "Calendly",
+      calcom: "Cal.com"
+    };
+    return names[platform] || platform;
+  };
+
+  const getPlatformDescription = (platform) => {
+    const descriptions = {
+      youtube: "Connect your channel to track video performance metrics",
+      stripe: "Connect your payment account to track revenue and transactions",
+      calendly: "Schedule and track calls and appointments automatically",
+      calcom: "Open-source alternative for scheduling meetings"
+    };
+    return descriptions[platform] || "";
+  };
+
+  const getPlatformIcon = (platform) => {
+    switch (platform) {
+      case "youtube":
+        return <FaYoutube size="30px" color="white" />;
+      case "stripe":
+        return <FaCreditCard size="30px" color="white" />;
+      case "calendly":
+        return <FaCalendarAlt size="30px" color="white" />;
+      case "calcom":
+        return <SiCalDotCom size="30px" color="white" />;
+      default:
+        return <Icon>link</Icon>;
+    }
+  };
+
+  const getPlatformScopes = (platform) => {
+    const scopes = {
+      youtube: ["Channel Statistics", "Video Metrics", "Engagement Data"],
+      stripe: ["Payment Records", "Customer Information", "Transaction History"],
+      calendly: ["Bookings", "Appointment Status", "Calendar Events"],
+      calcom: ["Bookings", "Scheduling Data", "User Profile"]
+    };
+    return scopes[platform] || [];
+  };
+
+  // Handle connect/disconnect actions
+  const handleConnect = (platform) => {
+    // Redirect to the backend OAuth initiation endpoint
+    window.location.href = `${process.env.REACT_APP_API_URL}/auth/${platform}`;
+  };
+
+  const handleDisconnect = async (platform) => {
+    try {
+      await api.delete(`/api/integrations/${platform}`);
+      
+      // Update the integration status in the UI
+      setIntegrations(prev => 
+        prev.map(integration => 
+          integration.id === platform
+            ? { ...integration, connected: false, status: "Not Connected", color: "error" }
+            : integration
+        )
+      );
+      
+      setAlert({
+        show: true,
+        message: `Successfully disconnected ${getPlatformName(platform)}`,
+        severity: "success"
+      });
+    } catch (error) {
+      console.error(`Failed to disconnect ${platform}:`, error);
+      setAlert({
+        show: true,
+        message: `Failed to disconnect ${getPlatformName(platform)}`,
+        severity: "error"
+      });
+    }
+  };
+
+  // Handle alert close
+  const handleCloseAlert = () => {
+    setAlert(prev => ({ ...prev, show: false }));
+  };
 
   return (
     <DashboardLayout>
@@ -126,15 +232,64 @@ function Integrations() {
                     {integration.icon}
                   </VuiBox>
                   
-                  <VuiTypography variant="h5" color="white" fontWeight="bold" mb={1}>
-                    {integration.name}
-                  </VuiTypography>
+                  <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                    <VuiTypography variant="h5" color="white" fontWeight="bold">
+                      {integration.name}
+                    </VuiTypography>
+                    <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
+                      <VuiBox>
+                        {integration.connected ? (
+                          <FaSync size="16px" color="#16f9aa" />
+                        ) : (
+                          <IoInformationCircle size="16px" color="#fff" />
+                        )}
+                      </VuiBox>
+                    </Tooltip>
+                  </VuiBox>
                   
-                  <VuiTypography variant="button" color="text" fontWeight="regular" mb="auto">
+                  <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
                     {integration.description}
                   </VuiTypography>
                   
-                  <VuiBox mt={3} display="flex" alignItems="center">
+                  {/* Data Pulled Section */}
+                  <VuiBox mb="auto">
+                    <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
+                      Data Pulled:
+                    </VuiTypography>
+                    
+                    <VuiBox pl={1} mt={1}>
+                      {integration.scopes.map((scope, index) => (
+                        <VuiTypography 
+                          key={index} 
+                          variant="caption" 
+                          color="text" 
+                          fontWeight="regular"
+                          display="block"
+                          mb={0.5}
+                        >
+                          • {scope}
+                        </VuiTypography>
+                      ))}
+                    </VuiBox>
+                  </VuiBox>
+                  
+                  {/* Account Information (if connected) */}
+                  {integration.connected && integration.accountName && (
+                    <VuiBox mt={2} mb={2}>
+                      <Divider />
+                      <VuiBox mt={2} display="flex" alignItems="center">
+                        <VuiTypography variant="button" color="text" fontWeight="regular">
+                          Connected Account:
+                        </VuiTypography>
+                        <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
+                          {integration.accountName}
+                        </VuiTypography>
+                      </VuiBox>
+                    </VuiBox>
+                  )}
+                  
+                  {/* Status Indicator */}
+                  <VuiBox mt={2} display="flex" alignItems="center">
                     {integration.connected ? (
                       <IoCheckmarkCircle size="18px" color="#16f9aa" />
                     ) : (
@@ -150,11 +305,17 @@ function Integrations() {
                     </VuiTypography>
                   </VuiBox>
                   
+                  {/* Connect/Disconnect Button */}
                   <VuiBox mt={2}>
                     <VuiButton
                       color={integration.connected ? "error" : "success"}
                       variant="contained"
                       fullWidth
+                      onClick={() => 
+                        integration.connected 
+                          ? handleDisconnect(integration.id)
+                          : handleConnect(integration.id)
+                      }
                     >
                       {integration.connected ? "Disconnect" : "Connect"}
                     </VuiButton>
@@ -208,10 +369,32 @@ function Integrations() {
             </Grid>
           </VuiBox>
         </Card>
+        
+        {/* Snackbar Alert */}
+        <Snackbar
+          open={alert.show}
+          autoHideDuration={6000}
+          onClose={handleCloseAlert}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert 
+            onClose={handleCloseAlert} 
+            severity={alert.severity} 
+            sx={{ 
+              width: '100%', 
+              backgroundColor: alert.severity === 'success' ? '#2dce89' : 
+                               alert.severity === 'error' ? '#f5365c' : 
+                               alert.severity === 'warning' ? '#fb6340' : '#11cdef',
+              color: 'white'
+            }}
+          >
+            {alert.message}
+          </Alert>
+        </Snackbar>
       </VuiBox>
       <Footer />
     </DashboardLayout>
   );
 }
 
-export default Integrations; 
+export default Integrations;

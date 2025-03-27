@@ -19,7 +19,7 @@
 import { useState, useEffect, useMemo } from "react";
 
 // react-router components
-import { Route, Switch, Redirect, useLocation } from "react-router-dom";
+import { Route, Switch, Redirect, useLocation, Routes, Navigate } from "react-router-dom";
 
 // @mui material components
 import { ThemeProvider } from "@mui/material/styles";
@@ -47,6 +47,9 @@ import routes from "routes";
 
 // Vision UI Dashboard React contexts
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
+
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function App() {
   const [controller, dispatch] = useVisionUIController();
@@ -151,10 +154,24 @@ export default function App() {
           </>
         )}
         {layout === "vr" && <Configurator />}
-        <Switch>
+        <Routes>
           {getRoutes(routes)}
-          <Redirect from="*" to="/dashboard" />
-        </Switch>
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+        
+        {/* Toast notifications container */}
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+        />
       </ThemeProvider>
     </CacheProvider>
   ) : (
@@ -175,10 +192,24 @@ export default function App() {
         </>
       )}
       {layout === "vr" && <Configurator />}
-      <Switch>
+      <Routes>
         {getRoutes(routes)}
-        <Redirect from="*" to="/dashboard" />
-      </Switch>
+        <Route path="*" element={<Navigate to="/dashboard" />} />
+      </Routes>
+      
+      {/* Toast notifications container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
     </ThemeProvider>
   );
 }
