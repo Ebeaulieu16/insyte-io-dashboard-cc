@@ -1,0 +1,15 @@
+fastapi==0.95.2
+uvicorn==0.24.0
+sqlalchemy==2.0.39
+psycopg==3.1.18
+psycopg-binary==3.2.6
+psycopg-pool==3.2.0
+pydantic==1.10.8
+python-dotenv==1.0.0
+httpx==0.25.1
+python-multipart==0.0.6
+starlette==0.27.0
+alembic==1.12.1
+cryptography==42.0.4
+pyjwt==2.8.0
+gunicorn==21.2.0
