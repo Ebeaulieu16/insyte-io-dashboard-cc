@@ -36,21 +36,6 @@ services:
         sync: false
     healthCheckPath: /
 
-  - type: static
-    name: insyte-frontend
-    buildCommand: cd frontend && npm install && npm run build
-    publishDirectory: frontend/build
-    envVars:
-      - key: NODE_VERSION
-        value: 20.10.0
-      - key: REACT_APP_API_URL
-        # Instead of using fromService, we'll set this manually in Render dashboard
-        sync: false
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: no-cache
-
 databases:
   - name: insyte-db
     plan: free
