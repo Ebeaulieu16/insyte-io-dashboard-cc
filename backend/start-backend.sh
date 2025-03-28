@@ -1,37 +1,18 @@
 #!/bin/bash
 
-# Script pour démarrer le backend FastAPI
+# Exit on error
+set -e
 
-echo "===== Démarrage du backend FastAPI ====="
+echo "Starting application setup..."
 
-# Vérification de la présence de l'environnement virtuel
-if [ ! -d "../venv-py311" ]; then
-  echo "Erreur: L'environnement virtuel venv-py311 n'a pas été trouvé"
-  echo "Exécutez d'abord: ../setup_venv.sh"
-  exit 1
-fi
+# Get directory of this script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd $DIR
 
-# Activation de l'environnement virtuel
-echo "Activation de l'environnement virtuel..."
-source ../venv-py311/bin/activate
+# Apply database migrations
+echo "Applying database migrations..."
+alembic upgrade head
 
-# Vérification de l'activation
-if [ -z "$VIRTUAL_ENV" ]; then
-  echo "Erreur: L'environnement virtuel n'a pas été activé correctement"
-  exit 1
-fi
-
-# Affichage de la version Python
-echo "Utilisation de Python: $(python --version)"
-
-# Vérification des dépendances
-echo "Vérification des dépendances..."
-pip install -r requirements.txt
-
-# Démarrage du serveur
-echo "Démarrage du serveur FastAPI..."
-echo "Le backend sera accessible à http://localhost:8000"
-echo "L'API sera disponible à http://localhost:8000/docs"
-
-# Exécution avec option de rechargement pour le développement
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload 
+# Start the application
+echo "Starting the FastAPI application..."
+exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} 

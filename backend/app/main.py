@@ -45,11 +45,8 @@ async def startup():
     Initialize application on startup.
     Creates database tables if they don't exist.
     """
-    # Create tables
-    async with engine.begin() as conn:
-        # Uncomment for first run or when models change
-        # await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+    # Create tables - using synchronous SQLAlchemy approach
+    Base.metadata.create_all(bind=engine)
 
 @app.get("/")
 async def root():
