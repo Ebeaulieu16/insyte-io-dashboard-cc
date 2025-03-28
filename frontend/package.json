@@ -1,11 +1,11 @@
 {
-	"name": "vision-ui-dashboard-react",
-	"version": "3.0.0",
+	"name": "insyte-dashboard",
+	"version": "1.0.0",
 	"private": true,
-	"author": "Creative Tim",
+	"author": "Emile Beaulieu",
 	"license": "See license in https://www.creative-tim.com/license",
-	"description": "Material UI version of Vision UI Dashboard by Creative Tim",
-	"homepage": "https://demos.creative-tim.com/vision-ui-dashboard-react/#/dashboard",
+	"description": "Dashboard for the Insyte.io platform, helping online coaches, creators, and agencies track and analyze their performance metrics.",
+	"homepage": "/",
 	"bugs": {
 		"url": "https://github.com/creativetimofficial/vision-ui-dashboard-react/issues"
 	},

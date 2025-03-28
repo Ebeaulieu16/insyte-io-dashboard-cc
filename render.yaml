@@ -19,6 +19,23 @@ services:
           name: insyte-frontend
           type: web
           property: url
+      # OAuth Integration Keys - These will need to be set in the Render dashboard
+      - key: YOUTUBE_CLIENT_ID
+        sync: false
+      - key: YOUTUBE_CLIENT_SECRET
+        sync: false
+      - key: STRIPE_CLIENT_ID
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: CALENDLY_CLIENT_ID
+        sync: false
+      - key: CALENDLY_CLIENT_SECRET
+        sync: false
+      - key: CALCOM_CLIENT_ID
+        sync: false
+      - key: CALCOM_CLIENT_SECRET
+        sync: false
     healthCheckPath: /
 
   - type: web
