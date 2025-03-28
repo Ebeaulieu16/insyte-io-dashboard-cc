@@ -47,14 +47,6 @@ import Integrations from "layouts/integrations";
 import Recommendations from "layouts/recommendations";
 import DeepView from "layouts/deepView";
 
-// No longer using these template views
-// import Tables from "layouts/tables";
-// import Billing from "layouts/billing";
-// import RTL from "layouts/rtl";
-// import Profile from "layouts/profile";
-// import SignIn from "layouts/authentication/sign-in";
-// import SignUp from "layouts/authentication/sign-up";
-
 // Vision UI Dashboard React icons
 import { IoStatsChart } from "react-icons/io5";
 import { FaChartLine, FaYoutube, FaLink, FaPlug, FaLightbulb } from "react-icons/fa";

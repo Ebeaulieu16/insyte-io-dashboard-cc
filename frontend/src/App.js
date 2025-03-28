@@ -19,7 +19,7 @@
 import { useState, useEffect, useMemo } from "react";
 
 // react-router components
-import { Route, Switch, Redirect, useLocation, Routes, Navigate } from "react-router-dom";
+import { Route, Switch, Navigate, useLocation, Redirect } from "react-router-dom";
 
 // @mui material components
 import { ThemeProvider } from "@mui/material/styles";
@@ -144,7 +144,7 @@ export default function App() {
             <Sidenav
               color={sidenavColor}
               brand=""
-              brandName="VISION UI FREE"
+              brandName="INSYTE DASHBOARD"
               routes={routes}
               onMouseEnter={handleOnMouseEnter}
               onMouseLeave={handleOnMouseLeave}
@@ -154,10 +154,10 @@ export default function App() {
           </>
         )}
         {layout === "vr" && <Configurator />}
-        <Routes>
+        <Switch>
           {getRoutes(routes)}
-          <Route path="*" element={<Navigate to="/dashboard" />} />
-        </Routes>
+          <Route path="*" render={() => <Redirect to="/dashboard" />} />
+        </Switch>
         
         {/* Toast notifications container */}
         <ToastContainer
@@ -182,7 +182,7 @@ export default function App() {
           <Sidenav
             color={sidenavColor}
             brand=""
-            brandName="VISION UI FREE"
+            brandName="INSYTE DASHBOARD"
             routes={routes}
             onMouseEnter={handleOnMouseEnter}
             onMouseLeave={handleOnMouseLeave}
@@ -192,10 +192,10 @@ export default function App() {
         </>
       )}
       {layout === "vr" && <Configurator />}
-      <Routes>
+      <Switch>
         {getRoutes(routes)}
-        <Route path="*" element={<Navigate to="/dashboard" />} />
-      </Routes>
+        <Route path="*" render={() => <Redirect to="/dashboard" />} />
+      </Switch>
       
       {/* Toast notifications container */}
       <ToastContainer
