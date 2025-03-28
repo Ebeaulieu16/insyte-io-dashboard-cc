@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: insyte-backend
+    runtime: python
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: DATABASE_URL
+        sync: false # This will need to be set in the Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        fromService:
+          name: insyte-frontend
+          type: web
+          property: url
+    healthCheckPath: /
+
+  - type: web
+    name: insyte-frontend
+    runtime: static
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/build
+    envVars:
+      - key: NODE_VERSION
+        value: 20.10.0
+      - key: REACT_APP_API_URL
+        fromService:
+          name: insyte-backend
+          type: web
+          property: url
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+
+databases:
+  - name: insyte-db
+    plan: free
+    ipAllowList: []
+
