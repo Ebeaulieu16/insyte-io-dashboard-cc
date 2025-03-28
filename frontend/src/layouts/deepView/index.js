@@ -7,7 +7,7 @@
 */
 
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useHistory } from "react-router-dom";
 
 // @mui material components
 import Grid from "@mui/material/Grid";
@@ -38,7 +38,7 @@ import { toast } from "react-toastify";
 
 function DeepView() {
   const { slug } = useParams();
-  const navigate = useNavigate();
+  const history = useHistory();
   
   // State
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +70,7 @@ function DeepView() {
   
   // Handle back button click
   const handleBack = () => {
-    navigate("/utm-generator");
+    history.push("/utm-generator");
   };
   
   return (

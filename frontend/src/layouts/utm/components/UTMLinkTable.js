@@ -7,7 +7,7 @@
 */
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useHistory } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -83,7 +83,7 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 }));
 
 function UTMLinkTable({ dateRange }) {
-  const navigate = useNavigate();
+  const history = useHistory();
   const [links, setLinks] = useState([]);
   const [filteredLinks, setFilteredLinks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +132,7 @@ function UTMLinkTable({ dateRange }) {
 
   // Handle row click to navigate to Deep View
   const handleRowClick = (slug) => {
-    navigate(`/deep-view/${slug}`);
+    history.push(`/deep-view/${slug}`);
   };
 
   // Fetch UTM links data
