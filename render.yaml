@@ -36,12 +36,10 @@ services:
         sync: false
     healthCheckPath: /
 
-  - type: web
+  - type: static
     name: insyte-frontend
-    runtime: static
-    plan: free
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: ./frontend/build
+    publishDirectory: frontend/build
     envVars:
       - key: NODE_VERSION
         value: 20.10.0
