@@ -15,10 +15,8 @@ services:
       - key: ENV
         value: production
       - key: FRONTEND_URL
-        fromService:
-          name: insyte-frontend
-          type: web
-          property: url
+        # Instead of using fromService, we'll set this manually in Render dashboard
+        sync: false
       # OAuth Integration Keys - These will need to be set in the Render dashboard
       - key: YOUTUBE_CLIENT_ID
         sync: false
@@ -48,10 +46,8 @@ services:
       - key: NODE_VERSION
         value: 20.10.0
       - key: REACT_APP_API_URL
-        fromService:
-          name: insyte-backend
-          type: web
-          property: url
+        # Instead of using fromService, we'll set this manually in Render dashboard
+        sync: false
     headers:
       - path: /*
         name: Cache-Control
