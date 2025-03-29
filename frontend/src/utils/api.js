@@ -63,51 +63,62 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor - this is the key part that handles API failures
+// Response interceptor - for all API responses
 api.interceptors.response.use(
+  // Success handler - runs on any 2XX response
   (response) => {
-    // Any status code within the range of 2xx
-    return response;
-  },
-  (error) => {
     // Special handling for integration status endpoint
-    if (error.config && error.config.url && error.config.url.includes('/api/integrations/status')) {
-      console.warn("Integration status API error, returning fallback data");
-      
-      // Return mock data for integrations
-      return Promise.resolve({
-        data: {
-          integrations: [
-            {
-              platform: "youtube",
-              status: "disconnected",
-              last_sync: null,
-              account_name: null
-            },
-            {
-              platform: "stripe", 
-              status: "disconnected",
-              last_sync: null,
-              account_name: null
-            },
-            {
-              platform: "calendly",
-              status: "disconnected",
-              last_sync: null,
-              account_name: null
-            },
-            {
-              platform: "calcom",
-              status: "disconnected",
-              last_sync: null,
-              account_name: null
-            }
-          ]
-        }
-      });
+    if (response.config.url && response.config.url.includes("/api/integrations/status")) {
+      // Check if the response has the expected format
+      if (!response.data || !response.data.integrations || !Array.isArray(response.data.integrations)) {
+        console.warn("[API Interceptor] Invalid response format for integration status, providing fallback data");
+        
+        // Return a structured response with default data
+        return {
+          ...response,
+          data: {
+            integrations: [
+              { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
+              { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
+              { platform: "calendly", status: "disconnected", account_name: null, last_sync: null },
+              { platform: "calcom", status: "disconnected", account_name: null, last_sync: null }
+            ]
+          }
+        };
+      }
     }
     
-    // For all other API errors, just pass them through
+    return response;
+  },
+  
+  // Error handler - runs on any non-2XX response
+  (error) => {
+    // Special handling for certain status codes
+    if (error.response) {
+      const status = error.response.status;
+      
+      // Special handling for integration status endpoint
+      if (error.config && error.config.url && error.config.url.includes("/api/integrations/status")) {
+        console.log("[API Interceptor] Integration status API error, returning mock data");
+        
+        // Return mock data for integrations
+        return Promise.resolve({
+          data: {
+            integrations: [
+              { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
+              { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
+              { platform: "calendly", status: "disconnected", account_name: null, last_sync: null },
+              { platform: "calcom", status: "disconnected", account_name: null, last_sync: null }
+            ]
+          }
+        });
+      }
+      
+      // Handle other status codes
+      // ... existing code ...
+    }
+    
+    // Return the error for further processing
     return Promise.reject(error);
   }
 );

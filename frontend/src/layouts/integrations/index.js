@@ -84,38 +84,144 @@ function Integrations() {
         setLoading(true);
         console.log("Fetching integration status...");
         
-        // Simple try/catch to handle API calls
+        // Default integrations data in case of errors
+        const defaultIntegrations = [
+          {
+            id: "youtube",
+            name: "YouTube",
+            description: "Connect your channel to track video performance metrics",
+            connected: false,
+            connectedSince: null,
+            accountName: null,
+            icon: getPlatformIcon("youtube"),
+            status: "Not Connected",
+            color: "error",
+            scopes: getPlatformScopes("youtube")
+          },
+          {
+            id: "stripe",
+            name: "Stripe",
+            description: "Connect your payment account to track revenue and transactions",
+            connected: false,
+            connectedSince: null,
+            accountName: null,
+            icon: getPlatformIcon("stripe"),
+            status: "Not Connected",
+            color: "error",
+            scopes: getPlatformScopes("stripe")
+          },
+          {
+            id: "calendly",
+            name: "Calendly",
+            description: "Schedule and track calls and appointments automatically",
+            connected: false,
+            connectedSince: null,
+            accountName: null,
+            icon: getPlatformIcon("calendly"),
+            status: "Not Connected",
+            color: "error",
+            scopes: getPlatformScopes("calendly")
+          },
+          {
+            id: "calcom",
+            name: "Cal.com",
+            description: "Open-source alternative for scheduling meetings",
+            connected: false,
+            connectedSince: null,
+            accountName: null,
+            icon: getPlatformIcon("calcom"),
+            status: "Not Connected",
+            color: "error",
+            scopes: getPlatformScopes("calcom")
+          }
+        ];
+        
+        let integrationsList = defaultIntegrations;
+        
         try {
           const response = await api.get("/api/integrations/status");
           console.log("API Response:", response.data);
           
-          // Map API response to integrations with UI properties
-          const integrationsList = response.data.integrations.map(integration => ({
-            id: integration.platform,
-            name: getPlatformName(integration.platform),
-            description: getPlatformDescription(integration.platform),
-            connected: integration.status === "connected",
-            connectedSince: integration.last_sync,
-            accountName: integration.account_name,
-            icon: getPlatformIcon(integration.platform),
-            status: integration.status === "connected" ? "Active" : "Not Connected",
-            color: integration.status === "connected" ? "success" : "error",
-            scopes: getPlatformScopes(integration.platform)
-          }));
-          
-          console.log("Processed integrations list:", integrationsList);
-          setIntegrations(integrationsList);
+          // Only override defaults if we got valid data from the API
+          if (response.data && response.data.integrations && Array.isArray(response.data.integrations)) {
+            // Map API response to integrations with UI properties
+            integrationsList = response.data.integrations.map(integration => ({
+              id: integration.platform,
+              name: getPlatformName(integration.platform),
+              description: getPlatformDescription(integration.platform),
+              connected: integration.status === "connected",
+              connectedSince: integration.last_sync,
+              accountName: integration.account_name,
+              icon: getPlatformIcon(integration.platform),
+              status: integration.status === "connected" ? "Active" : "Not Connected",
+              color: integration.status === "connected" ? "success" : "error",
+              scopes: getPlatformScopes(integration.platform)
+            }));
+          } else {
+            console.warn("API response missing integrations array, using defaults");
+            setAlert({
+              show: true,
+              message: "Using default integration options - API response format invalid",
+              severity: "warning"
+            });
+          }
         } catch (apiError) {
-          // Our API utility will handle most errors, but just in case:
           console.error("API error:", apiError);
           setAlert({
             show: true,
             message: "Unable to fetch integration status. Showing default options.",
             severity: "warning"
           });
+          setIsDemo(true);
         }
+        
+        console.log("Processed integrations list:", integrationsList);
+        setIntegrations(integrationsList); // Always set integrations, even in error case
       } catch (error) {
         console.error("Unexpected error:", error);
+        // Even in case of a serious error, set default integrations
+        setIntegrations([
+          {
+            id: "youtube",
+            name: "YouTube",
+            description: "Connect your channel to track video performance metrics",
+            connected: false,
+            icon: getPlatformIcon("youtube"),
+            status: "Not Connected",
+            color: "error",
+            scopes: getPlatformScopes("youtube")
+          },
+          {
+            id: "stripe",
+            name: "Stripe", 
+            description: "Connect your payment account to track revenue and transactions",
+            connected: false,
+            icon: getPlatformIcon("stripe"),
+            status: "Not Connected",
+            color: "error",
+            scopes: getPlatformScopes("stripe")
+          },
+          {
+            id: "calendly",
+            name: "Calendly",
+            description: "Schedule and track calls and appointments automatically", 
+            connected: false,
+            icon: getPlatformIcon("calendly"),
+            status: "Not Connected",
+            color: "error",
+            scopes: getPlatformScopes("calendly")
+          },
+          {
+            id: "calcom",
+            name: "Cal.com",
+            description: "Open-source alternative for scheduling meetings",
+            connected: false,
+            icon: getPlatformIcon("calcom"),
+            status: "Not Connected",
+            color: "error",
+            scopes: getPlatformScopes("calcom")
+          }
+        ]);
       } finally {
         setLoading(false);
       }
