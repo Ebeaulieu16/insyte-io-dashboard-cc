@@ -21,7 +21,7 @@ class IntegrationCreate(IntegrationBase):
 
 class IntegrationUpdate(BaseModel):
     """Schema for updating integration records."""
-    is_connected: Optional[bool] = Field(None, description="Connection status")
+    status: Optional[str] = Field(None, description="Connection status")
     access_token: Optional[str] = Field(None, description="OAuth access token")
     refresh_token: Optional[str] = Field(None, description="OAuth refresh token")
     token_expires_at: Optional[datetime] = Field(None, description="Token expiration timestamp")
@@ -29,15 +29,17 @@ class IntegrationUpdate(BaseModel):
     api_key: Optional[str] = Field(None, description="API key (for non-OAuth platforms)")
     account_name: Optional[str] = Field(None, description="Account name")
     account_id: Optional[str] = Field(None, description="Account ID")
+    extra_data: Optional[Dict[str, Any]] = Field(None, description="Additional platform-specific data")
 
 class IntegrationResponse(IntegrationBase):
     """Schema for integration responses (public fields only)."""
     id: int
-    is_connected: bool
+    status: str = Field(..., description="Status: connected, disconnected, error")
     last_sync: Optional[datetime] = None
     account_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    extra_data: Optional[Dict[str, Any]] = None
 
     class Config:
         orm_mode = True

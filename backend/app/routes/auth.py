@@ -249,8 +249,8 @@ async def oauth_callback(
                 existing_integration.last_sync = datetime.now()
                 
                 # For Stripe, store additional metadata
-                if platform == "stripe" and not existing_integration.metadata:
-                    existing_integration.metadata = {}
+                if platform == "stripe" and not existing_integration.extra_data:
+                    existing_integration.extra_data = {}
                 
                 if platform == "stripe":
                     # Store stripe-specific data
@@ -258,7 +258,7 @@ async def oauth_callback(
                     if stripe_user_id and stripe_user_id != existing_integration.account_id:
                         existing_integration.account_id = stripe_user_id
                     
-                    existing_integration.metadata.update({
+                    existing_integration.extra_data.update({
                         "stripe_publishable_key": token_info.get("stripe_publishable_key"),
                         "scope": token_info.get("scope"),
                         "livemode": token_info.get("livemode", False)
@@ -285,7 +285,7 @@ async def oauth_callback(
                     if stripe_user_id and stripe_user_id != integration.account_id:
                         integration.account_id = stripe_user_id
                     
-                    integration.metadata = {
+                    integration.extra_data = {
                         "stripe_publishable_key": token_info.get("stripe_publishable_key"),
                         "scope": token_info.get("scope"),
                         "livemode": token_info.get("livemode", False)
@@ -339,7 +339,7 @@ async def disconnect_integration(
         )
     
     # Update integration status
-    integration.is_connected = False
+    integration.status = IntegrationStatus.DISCONNECTED
     db.commit()
     
     return {
@@ -367,7 +367,7 @@ async def get_integration_status(db: Session = Depends(get_db)):
     
     # Update with actual values from DB
     for integration in integrations:
-        status = "connected" if integration.is_connected else "disconnected"
+        status = integration.status if isinstance(integration.status, str) else str(integration.status)
         status_dict[integration.platform] = {
             "platform": integration.platform,
             "status": status,
@@ -376,9 +376,9 @@ async def get_integration_status(db: Session = Depends(get_db)):
         }
     
     # Convert to list and return
-    status_list = [IntegrationStatus(**data) for data in status_dict.values()]
+    status_list = list(status_dict.values())
     
-    return IntegrationStatusList(integrations=status_list)
+    return {"integrations": status_list}
 
 # Helper functions for integration-specific operations
 async def get_account_info(platform: str, access_token: str) -> tuple:
