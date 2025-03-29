@@ -109,8 +109,8 @@ export default {
   },
 
   success: {
-    main: "#14D964",
-    focus: "#14D964",
+    main: "#FF8700",
+    focus: "#FF8700",
   },
 
   warning: {
@@ -230,11 +230,6 @@ export default {
       state: "#FF8700",
     },
 
-    success: {
-      main: "#14D964",
-      state: "#14D964",
-    },
-
     warning: {
       main: "#FF8700",
       state: "#FF8700",
@@ -338,9 +333,9 @@ export default {
     },
 
     success: {
-      main: "#14D964",
-      state: "#14D964",
-      border: "#14D964",
+      main: "#FF8700",
+      state: "#FF8700",
+      border: "#FF8700",
     },
 
     warning: {
@@ -388,8 +383,8 @@ export default {
     },
 
     success: {
-      basic: "#14D964",
-      background: "#14D964",
+      basic: "#FF8700",
+      background: "#FF8700",
       text: "#FFFFFF",
     },
 
@@ -423,7 +418,7 @@ export default {
     borderColor: { main: "rgba(43, 43, 43, 0.3)", focus: "rgba(43, 43, 43, 0.6)" },
     boxShadow: "#FF8700",
     error: "#E63946",
-    success: "#14D964",
+    success: "#FF8700",
   },
 
   sliderColors: {

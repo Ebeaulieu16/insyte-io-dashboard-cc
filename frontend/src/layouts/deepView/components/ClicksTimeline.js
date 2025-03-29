@@ -100,7 +100,7 @@ function ClicksTimeline({ clicksData }) {
         shade: "dark",
         type: "horizontal",
         shadeIntensity: 0.5,
-        gradientToColors: [info.state],
+        gradientToColors: [primary.focus],
         inverseColors: true,
         opacityFrom: 1,
         opacityTo: 0.75,

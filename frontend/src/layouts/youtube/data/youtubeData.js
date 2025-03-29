@@ -139,7 +139,7 @@ export const miniFunnelChartOptions = {
       show: false,
     },
   },
-  colors: ['#0075FF', '#2CD9FF', '#16f9aa'],
+  colors: ['#FF8700', '#FFB200', '#FFDB99'],
   plotOptions: {
     bar: {
       horizontal: true,

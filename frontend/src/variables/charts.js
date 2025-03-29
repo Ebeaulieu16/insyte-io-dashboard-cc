@@ -270,9 +270,9 @@ export const lineChartOptionsProfile1 = {
       opacityTo: 0,
       stops: [],
     },
-    colors: ["#14D964"],
+    colors: ["#FF8700"],
   },
-  colors: ["#14D964"],
+  colors: ["#FF8700"],
 };
 
 export const lineChartDataProfile2 = [

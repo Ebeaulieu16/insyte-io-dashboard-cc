@@ -46,11 +46,11 @@ export const funnelChartOptions = {
     },
   },
   colors: [
-    '#0075FF',
-    '#2CD9FF',
-    '#4FD1C5',
-    '#01B574',
-    '#16f9aa',
+    '#FF8700',
+    '#FFB200',
+    '#FFC966',
+    '#FFDB99',
+    '#FFEDCC',
   ],
   dataLabels: {
     enabled: true,
@@ -104,7 +104,7 @@ export const donutChartOptions = {
   chart: {
     type: 'donut',
   },
-  colors: ['#0075FF', '#2D2E5F'],
+  colors: ['#FF8700', '#2D2E5F'],
   labels: ['Closed Deals', 'Lost Opportunities'],
   plotOptions: {
     pie: {
