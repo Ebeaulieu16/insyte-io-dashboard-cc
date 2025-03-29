@@ -248,7 +248,7 @@ async def oauth_callback(
                 existing_integration.expires_at = expires_at
                 existing_integration.last_sync = datetime.now()
                 
-                # For Stripe, store additional metadata
+                # For Stripe, store additional extra data
                 if platform == "stripe" and not existing_integration.extra_data:
                     existing_integration.extra_data = {}
                 
@@ -279,7 +279,7 @@ async def oauth_callback(
                     last_sync=datetime.now()
                 )
                 
-                # For Stripe, store additional metadata
+                # For Stripe, store additional extra data
                 if platform == "stripe":
                     stripe_user_id = token_info.get("stripe_user_id")
                     if stripe_user_id and stripe_user_id != integration.account_id:
@@ -348,7 +348,7 @@ async def disconnect_integration(
         "status": "disconnected"
     }
 
-@router.get("/api/integrations/status", response_model=IntegrationStatusList)
+@router.get("/api/integrations/status")
 async def get_integration_status(db: Session = Depends(get_db)):
     """
     Get the status of all platform integrations.
@@ -376,9 +376,9 @@ async def get_integration_status(db: Session = Depends(get_db)):
         }
     
     # Convert to list and return
-    status_list = list(status_dict.values())
+    integrations_list = list(status_dict.values())
     
-    return {"integrations": status_list}
+    return {"integrations": integrations_list}
 
 # Helper functions for integration-specific operations
 async def get_account_info(platform: str, access_token: str) -> tuple:
