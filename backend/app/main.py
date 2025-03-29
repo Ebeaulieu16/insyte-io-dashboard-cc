@@ -6,16 +6,29 @@ Entry point for the FastAPI application.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import logging
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Import routes
-from app.routes import dashboard, youtube, sales, auth, utm, payments
+from app.routes import dashboard, youtube, sales, auth, utm
 
 # Import database initialization
 from app.database import engine, Base
+
+# Try to import the payments router - this may fail if migrations are incomplete
+try:
+    from app.routes import payments
+    payments_router_available = True
+except ImportError as e:
+    logger.warning(f"Payments router not available: {e}")
+    payments_router_available = False
 
 app = FastAPI(
     title="Insyte.io Dashboard API",
@@ -38,7 +51,14 @@ app.include_router(youtube.router)
 app.include_router(sales.router)
 app.include_router(auth.router)
 app.include_router(utm.router)
-app.include_router(payments.router)
+
+# Include payments router if available
+if payments_router_available:
+    try:
+        app.include_router(payments.router)
+        logger.info("Payments router successfully included")
+    except Exception as e:
+        logger.error(f"Error including payments router: {e}")
 
 @app.on_event("startup")
 async def startup():
@@ -47,7 +67,11 @@ async def startup():
     Creates database tables if they don't exist.
     """
     # Create tables - using synchronous SQLAlchemy approach
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Error creating database tables: {e}")
 
 @app.get("/")
 async def root():

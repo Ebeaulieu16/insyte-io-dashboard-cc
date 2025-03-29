@@ -13,7 +13,12 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models.payment import Payment
-from app.models.integration import Integration
+try:
+    from app.models.integration import Integration, IntegrationStatus
+    INTEGRATION_MODEL_UPDATED = True
+except (ImportError, AttributeError):
+    INTEGRATION_MODEL_UPDATED = False
+    logging.warn("Using legacy Integration model or model not available")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +38,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     """
     Endpoint for receiving Stripe webhook events.
     This endpoint handles payment_intent.succeeded events to track payments.
-    Also processes events from connected accounts.
+    Also processes events from connected accounts when available.
     
     Args:
         request: The incoming webhook request
@@ -80,19 +85,23 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     account_id = event.get("account")
     dashboard_user_id = None
     
-    # If this is from a connected account, find which dashboard user it belongs to
-    if account_id:
+    # If integration model is updated and this is from a connected account, find the dashboard user
+    if INTEGRATION_MODEL_UPDATED and account_id:
         logger.info(f"Event from connected account: {account_id}")
-        integration = db.query(Integration).filter(
-            Integration.platform == "stripe",
-            Integration.account_id == account_id
-        ).first()
-        
-        if integration:
-            dashboard_user_id = integration.user_id
-            logger.info(f"Found integration for dashboard user: {dashboard_user_id}")
-        else:
-            logger.warning(f"No integration found for account: {account_id}")
+        try:
+            integration = db.query(Integration).filter(
+                Integration.platform == "stripe",
+                Integration.account_id == account_id
+            ).first()
+            
+            if integration:
+                dashboard_user_id = integration.user_id
+                logger.info(f"Found integration for dashboard user: {dashboard_user_id}")
+            else:
+                logger.warning(f"No integration found for account: {account_id}")
+        except Exception as e:
+            # If there's an error with the Integration model, log and continue
+            logger.error(f"Error finding integration: {e}")
     
     # Handle the event
     if event["type"] == "payment_intent.succeeded":
@@ -109,7 +118,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         logger.info(f"Account ID: {account_id}")
         logger.info(f"Dashboard User ID: {dashboard_user_id}")
         
-        # For connected accounts, we can use a default slug if none is provided
+        # For connected accounts, use a default slug if none is provided
         if not slug and account_id:
             slug = f"account_{account_id}"
             logger.info(f"Using default slug for connected account: {slug}")
@@ -130,16 +139,39 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 email = "unknown@example.com"
                 
         try:
-            # Create a new payment record with account tracking
-            payment = Payment(
-                slug=slug,
-                email=email,
-                amount=payment_intent["amount"] / 100,  # Convert from cents to dollars
-                currency=payment_intent["currency"].upper(),
-                timestamp=datetime.fromtimestamp(payment_intent["created"]),
-                dashboard_user_id=dashboard_user_id,
-                stripe_account_id=account_id
-            )
+            # Check if the Payment model has the new columns
+            payment_kwargs = {
+                "slug": slug,
+                "email": email,
+                "amount": payment_intent["amount"] / 100,  # Convert from cents to dollars
+                "currency": payment_intent["currency"].upper(),
+                "timestamp": datetime.fromtimestamp(payment_intent["created"])
+            }
+            
+            # Add the new fields if they're available in the model
+            has_new_fields = False
+            try:
+                # Test if a Payment object can be created with the new fields
+                test_payment = Payment(
+                    **payment_kwargs,
+                    dashboard_user_id=dashboard_user_id,
+                    stripe_account_id=account_id
+                )
+                has_new_fields = True
+            except TypeError:
+                # If TypeError is raised, the model doesn't have these fields yet
+                logger.warning("Payment model doesn't have dashboard_user_id and stripe_account_id fields yet")
+                has_new_fields = False
+            
+            # Create the payment object with the appropriate fields
+            if has_new_fields:
+                payment = Payment(
+                    **payment_kwargs,
+                    dashboard_user_id=dashboard_user_id,
+                    stripe_account_id=account_id
+                )
+            else:
+                payment = Payment(**payment_kwargs)
             
             # Save to database
             db.add(payment)
@@ -156,8 +188,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 detail=f"Error recording payment: {str(e)}"
             )
     
-    # Handle account.updated events to update integration status
-    elif event["type"] == "account.updated" and account_id:
+    # Handle account.updated events to update integration status if the model is updated
+    elif INTEGRATION_MODEL_UPDATED and event["type"] == "account.updated" and account_id:
         account = event["data"]["object"]
         
         try:
@@ -173,13 +205,16 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                     integration.account_name = account["business_profile"]["name"]
                 
                 # Update metadata with additional account information
-                if not integration.metadata:
+                if hasattr(integration, 'metadata') and integration.metadata is None:
                     integration.metadata = {}
                 
-                integration.metadata["charges_enabled"] = account.get("charges_enabled", False)
-                integration.metadata["details_submitted"] = account.get("details_submitted", False)
-                integration.metadata["payouts_enabled"] = account.get("payouts_enabled", False)
-                integration.last_sync = datetime.now()
+                if hasattr(integration, 'metadata'):
+                    integration.metadata["charges_enabled"] = account.get("charges_enabled", False)
+                    integration.metadata["details_submitted"] = account.get("details_submitted", False)
+                    integration.metadata["payouts_enabled"] = account.get("payouts_enabled", False)
+                
+                if hasattr(integration, 'last_sync'):
+                    integration.last_sync = datetime.now()
                 
                 db.commit()
                 logger.info(f"Updated integration for account: {account_id}")
@@ -214,30 +249,39 @@ async def get_payments(db: Session = Depends(get_db)):
         
         result = []
         for payment in payments:
-            # Get integration info if this payment is from a connected account
-            integration_info = None
-            if payment.stripe_account_id:
-                integration = db.query(Integration).filter(
-                    Integration.account_id == payment.stripe_account_id
-                ).first()
-                
-                if integration:
-                    integration_info = {
-                        "user_id": integration.user_id,
-                        "account_name": integration.account_name
-                    }
-            
-            result.append({
+            # Create base payment data
+            payment_data = {
                 "id": payment.id,
                 "slug": payment.slug,
                 "email": payment.email,
                 "amount": payment.amount,
                 "currency": payment.currency,
                 "timestamp": payment.timestamp.isoformat(),
-                "dashboard_user_id": payment.dashboard_user_id,
-                "stripe_account_id": payment.stripe_account_id,
-                "integration": integration_info
-            })
+            }
+            
+            # Add new fields if they exist
+            if hasattr(payment, 'dashboard_user_id'):
+                payment_data["dashboard_user_id"] = payment.dashboard_user_id
+            
+            if hasattr(payment, 'stripe_account_id'):
+                payment_data["stripe_account_id"] = payment.stripe_account_id
+                
+                # Get integration info if available
+                if INTEGRATION_MODEL_UPDATED and payment.stripe_account_id:
+                    try:
+                        integration = db.query(Integration).filter(
+                            Integration.account_id == payment.stripe_account_id
+                        ).first()
+                        
+                        if integration:
+                            payment_data["integration"] = {
+                                "user_id": integration.user_id,
+                                "account_name": integration.account_name
+                            }
+                    except Exception as e:
+                        logger.error(f"Error retrieving integration: {e}")
+            
+            result.append(payment_data)
         
         return {
             "payments": result,
