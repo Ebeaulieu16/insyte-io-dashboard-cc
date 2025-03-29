@@ -33,7 +33,7 @@ const { borderCol } = colors;
 export default {
   borderColor: {
     grey: { borderCol },
-    white: "rgba(226, 232, 240, 0.3)",
+    white: "rgba(255, 255, 255, 0.3)",
   },
 
   borderWidth: {

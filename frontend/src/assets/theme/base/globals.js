@@ -27,7 +27,7 @@ export default {
     background: dark.body,
   },
   body: {
-    background: `url(${bgAdmin})`,
+    background: dark.body,
     backgroundSize: "cover",
   },
   "*, *::before, *::after": {
@@ -38,10 +38,10 @@ export default {
     textDecoration: "none !important",
   },
   "a.link, .link, a.link:link, .link:link, a.link:visited, .link:visited": {
-    color: `${dark.main} !important`,
+    color: `${info.main} !important`,
     transition: "color 150ms ease-in !important",
   },
   "a.link:hover, .link:hover, a.link:focus, .link:focus": {
-    color: `${info.main} !important`,
+    color: `${info.focus} !important`,
   },
 };

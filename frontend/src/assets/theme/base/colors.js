@@ -24,16 +24,16 @@
 export default {
   // Vision UI Colors
   background: {
-    default: "#f8f9fa",
+    default: "#0A0A0A",
   },
 
   sidenav: {
-    button: "#1a1f37",
+    button: "#1A1A1A",
   },
 
   text: {
-    main: "#a0aec0",
-    focus: "#ffffff",
+    main: "#FFFFFF",
+    focus: "#FFFFFF",
   },
 
   transparent: {
@@ -41,97 +41,97 @@ export default {
   },
 
   white: {
-    main: "#ffffff",
-    focus: "#ffffff",
+    main: "#FFFFFF",
+    focus: "#FFFFFF",
   },
 
   brand: {
-    main: "#0075ff",
-    focus: "#0075ff",
+    main: "#FF8700",
+    focus: "#FF8700",
   },
 
   black: {
-    light: "#141414",
-    main: "#000000",
-    focus: "#000000",
+    light: "#1A1A1A",
+    main: "#0A0A0A",
+    focus: "#0A0A0A",
   },
 
   primary: {
-    main: "#4318ff",
-    focus: "#9f7aea",
+    main: "#FF8700",
+    focus: "#FF8700",
   },
 
   secondary: {
-    main: "#0f1535",
-    focus: "#131538",
+    main: "#1A1A1A",
+    focus: "#2B2B2B",
   },
 
   lightblue: {
-    main: "#4299e1",
-    focus: "#4299e1",
+    main: "#009FFD",
+    focus: "#009FFD",
   },
 
   orange: {
-    main: "#f6ad55",
-    focus: "#f6ad55",
+    main: "#FF8700",
+    focus: "#FF8700",
   },
 
   grey: {
-    100: "#edf2f7",
-    200: "#e2e8f0",
-    300: "#cbd5e0",
-    400: "#a0aec0",
-    500: "#718096",
-    600: "#4a5568",
-    700: "#2d3748",
-    800: "#1a202a",
-    900: "#171923",
+    100: "#EAEAEA",
+    200: "#B0B0B0",
+    300: "#B0B0B0",
+    400: "#B0B0B0",
+    500: "#2B2B2B",
+    600: "#2B2B2B",
+    700: "#1A1A1A",
+    800: "#1A1A1A",
+    900: "#0A0A0A",
   },
 
   borderCol: {
-    main: "#56577a",
-    red: "#e31a1a",
-    navbar: "rgba(226, 232, 240, 0.3)",
+    main: "#2B2B2B",
+    red: "#E63946",
+    navbar: "rgba(43, 43, 43, 0.3)",
   },
 
   // Other colors
   info: {
-    main: "#0075ff",
-    focus: "#3993fe",
+    main: "#009FFD",
+    focus: "#009FFD",
     charts: {
-      100: "#2d8cfc",
-      200: "#2370cc",
-      300: "#2370cc",
-      400: "#0f4a91",
-      500: "#073a78",
-      600: "#012654",
+      100: "#009FFD",
+      200: "#009FFD",
+      300: "#009FFD",
+      400: "#009FFD",
+      500: "#009FFD",
+      600: "#009FFD",
     },
   },
 
   success: {
-    main: "#01b574",
-    focus: "#35d28a",
+    main: "#14D964",
+    focus: "#14D964",
   },
 
   warning: {
-    main: "#ffb547",
-    focus: "#ffcd75",
+    main: "#FF8700",
+    focus: "#FF8700",
   },
 
   error: {
-    main: "#e31a1a",
-    focus: "#ee5d50",
+    main: "#E63946",
+    focus: "#E63946",
   },
 
   light: {
-    main: "#e9ecef",
-    focus: "#ebeff4",
+    main: "#EAEAEA",
+    focus: "#FFFFFF",
   },
 
   dark: {
-    main: "#344767",
-    focus: "#121241",
-    body: "#030c1d",
+    main: "#0A0A0A",
+    focus: "#1A1A1A",
+    body: "#0A0A0A",
   },
 
   gradients: {
@@ -143,8 +143,8 @@ export default {
 
     sidenav: {
       deg: "127.09",
-      main: "rgba(6, 11, 40, 0.94) 19.41%",
-      state: "rgba(10, 14, 35, 0.49) 76.65%",
+      main: "rgba(10, 10, 10, 0.94) 19.41%",
+      state: "rgba(26, 26, 26, 0.49) 76.65%",
     },
 
     borderLight: {
@@ -161,98 +161,98 @@ export default {
 
     cover: {
       deg: "159.02",
-      main: "#0f123b 14.25%",
-      state: "#090d2e 56.45%",
-      stateSecondary: "#020515 86.14%",
+      main: "#0A0A0A 14.25%",
+      state: "#1A1A1A 56.45%",
+      stateSecondary: "#0A0A0A 86.14%",
     },
 
     cardDark: {
       deg: "126.97",
-      main: "rgba(6, 11, 40, 0.74) 28.26%",
-      state: "rgba(10, 14, 35, 0.71) 91.2%",
+      main: "rgba(26, 26, 26, 0.74) 28.26%",
+      state: "rgba(26, 26, 26, 0.71) 91.2%",
     },
 
     cardLight: {
       deg: "127.09",
-      main: "rgba(6, 11, 40, 0.94) 19.41%",
-      state: "rgba(10, 14, 35, 0.49) 76.65%",
+      main: "rgba(26, 26, 26, 0.94) 19.41%",
+      state: "rgba(26, 26, 26, 0.49) 76.65%",
     },
 
     card: {
       deg: "127.09",
-      main: "rgba(6, 11, 40, 0.94) 19.41%",
-      state: "rgba(10, 14, 35, 0.49) 76.65%",
+      main: "rgba(26, 26, 26, 0.94) 19.41%",
+      state: "rgba(26, 26, 26, 0.49) 76.65%",
     },
 
     menu: {
       deg: "126.97",
-      main: "#05153f 28.26%",
-      state: "#072561 91.2%",
+      main: "#1A1A1A 28.26%",
+      state: "#2B2B2B 91.2%",
     },
 
     cardContent: {
       deg: "126.97",
-      main: "rgb(6, 11, 40) 28.26%",
-      state: "rgb(10, 14, 35) 91.2%",
+      main: "rgb(26, 26, 26) 28.26%",
+      state: "rgb(26, 26, 26) 91.2%",
     },
 
     box: {
       deg: "126.97",
-      main: "rgba(6, 11, 40, 0.74) 28.26%",
-      state: "rgba(10, 14, 35, 0.71) 91.2%",
+      main: "rgba(26, 26, 26, 0.74) 28.26%",
+      state: "rgba(26, 26, 26, 0.71) 91.2%",
     },
 
     bill: {
       deg: "127.09",
-      main: "rgba(24, 29, 60, 0.94) 19.41%",
-      state: "rgba(10, 14, 35, 0.49) 76.65%",
+      main: "rgba(26, 26, 26, 0.94) 19.41%",
+      state: "rgba(26, 26, 26, 0.49) 76.65%",
     },
 
     primary: {
       deg: "97.89",
-      main: "#4318ff",
-      state: "#9f7aea",
+      main: "#FF8700",
+      state: "#FF8700",
     },
 
     secondary: {
-      main: "#627594",
-      state: "#a8b8d8",
+      main: "#2B2B2B",
+      state: "#1A1A1A",
     },
 
     logo: {
       deg: "97.89",
       main: "#ffffff 70.67%",
-      state: "rgba(117, 122, 140, 0) 108.55%",
+      state: "rgba(176, 176, 176, 0) 108.55%",
     },
 
     info: {
-      main: "#0075ff",
-      state: "#21d4fd",
+      main: "#009FFD",
+      state: "#009FFD",
     },
 
     success: {
-      main: "#01B574",
-      state: "#c9fbd5",
+      main: "#14D964",
+      state: "#14D964",
     },
 
     warning: {
-      main: "#f53939",
-      state: "#fbcf33",
+      main: "#FF8700",
+      state: "#FF8700",
     },
 
     error: {
-      main: "#f53c2b",
-      state: "#f53c2b",
+      main: "#E63946",
+      state: "#E63946",
     },
 
     light: {
-      main: "#ced4da",
-      state: "#ebeff4",
+      main: "#EAEAEA",
+      state: "#FFFFFF",
     },
 
     dark: {
-      main: "#141727",
-      state: "#3a416f",
+      main: "#0A0A0A",
+      state: "#1A1A1A",
     },
   },
 
@@ -320,121 +320,121 @@ export default {
 
   alertColors: {
     primary: {
-      main: "#7928ca",
-      state: "#d6006c",
-      border: "#efb6e2",
+      main: "#FF8700",
+      state: "#FF8700",
+      border: "#FF8700",
     },
 
     secondary: {
-      main: "#627594",
-      state: "#8ca1cb",
-      border: "#dadee6",
+      main: "#2B2B2B",
+      state: "#1A1A1A",
+      border: "#2B2B2B",
     },
 
     info: {
-      main: "#2152ff",
-      state: "#02c6f3",
-      border: "#b9ecf8",
+      main: "#009FFD",
+      state: "#009FFD",
+      border: "#009FFD",
     },
 
     success: {
-      main: "#17ad37",
-      state: "#84dc14",
-      border: "#daf3b9",
+      main: "#14D964",
+      state: "#14D964",
+      border: "#14D964",
     },
 
     warning: {
-      main: "#f53939",
-      state: "#fac60b",
-      border: "#fef1c2",
+      main: "#FF8700",
+      state: "#FF8700",
+      border: "#FF8700",
     },
 
     error: {
-      main: "#ea0606",
-      state: "#ff3d59",
-      border: "#f9b4b4",
+      main: "#E63946",
+      state: "#E63946",
+      border: "#E63946",
     },
 
     light: {
-      main: "#ced4da",
-      state: "#d1dae6",
-      border: "#f8f9fa",
+      main: "#EAEAEA",
+      state: "#FFFFFF",
+      border: "#FFFFFF",
     },
 
     dark: {
-      main: "#141727",
-      state: "#2c3154",
-      border: "#c2c8d1",
+      main: "#0A0A0A",
+      state: "#1A1A1A",
+      border: "#2B2B2B",
     },
   },
 
   badgeColors: {
     primary: {
-      basic: "#805ad5",
-      background: "#f883dd",
-      text: "#a3017e",
+      basic: "#FF8700",
+      background: "#FF8700",
+      text: "#FFFFFF",
     },
 
     secondary: {
-      basic: "#5974a2",
-      background: "#e4e8ed",
-      text: "#5974a2",
+      basic: "#1A1A1A",
+      background: "#2B2B2B",
+      text: "#FFFFFF",
     },
 
     info: {
-      basic: "#4299e1",
-      background: "#abe9f7",
-      text: "#08a1c4",
+      basic: "#009FFD",
+      background: "#009FFD",
+      text: "#FFFFFF",
     },
 
     success: {
-      basic: "#01b574",
-      background: "#c9fbd5",
-      text: "#01b574",
+      basic: "#14D964",
+      background: "#14D964",
+      text: "#FFFFFF",
     },
 
     warning: {
-      basic: "#ffb547",
-      background: "#fef5d3",
-      text: "#fbc400",
+      basic: "#FF8700",
+      background: "#FF8700",
+      text: "#FFFFFF",
     },
 
     error: {
-      basic: "#e31a1a",
-      background: "#fc9797",
-      text: "#bd0000",
+      basic: "#E63946",
+      background: "#E63946",
+      text: "#FFFFFF",
     },
 
     light: {
-      basic: "#ffffff",
-      background: "#ffffff",
-      text: "#c7d3de",
+      basic: "#FFFFFF",
+      background: "#FFFFFF",
+      text: "#B0B0B0",
     },
 
     dark: {
-      basic: "#1E244B",
-      background: "#1E244B",
-      text: "#fff",
+      basic: "#0A0A0A",
+      background: "#0A0A0A",
+      text: "#FFFFFF",
     },
   },
 
   inputColors: {
-    backgroundColor: "#0f1535",
-    borderColor: { main: "rgba(226, 232, 240, 0.3)", focus: "rgba(226, 232, 240, 0.6)" },
-    boxShadow: "#628fc2",
-    error: "#fd5c70",
-    success: "#66d432",
+    backgroundColor: "#1A1A1A",
+    borderColor: { main: "rgba(43, 43, 43, 0.3)", focus: "rgba(43, 43, 43, 0.6)" },
+    boxShadow: "#FF8700",
+    error: "#E63946",
+    success: "#14D964",
   },
 
   sliderColors: {
-    thumb: { borderColor: "#d9d9d9" },
+    thumb: { borderColor: "#FFFFFF" },
   },
 
   circleSliderColors: {
-    background: "#d3d3d3",
+    background: "#2B2B2B",
   },
 
   tabs: {
-    indicator: { boxShadow: "#ddd" },
+    indicator: { boxShadow: "#FF8700" },
   },
 };
