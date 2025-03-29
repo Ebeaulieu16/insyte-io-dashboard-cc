@@ -46,7 +46,7 @@ import sidenavLogoLabel from "examples/Sidenav/styles/sidenav";
 import { useVisionUIController, setMiniSidenav, setTransparentSidenav } from "context";
 
 // Vision UI Dashboard React icons
-import SimmmpleLogo from "examples/Icons/SimmmpleLogo";
+import InsyteLogo from "examples/Icons/InsyteLogo";
 
 // function Sidenav({ color, brand, brandName, routes, ...rest }) {
 function Sidenav({ color, brandName, routes, ...rest }) {
@@ -188,7 +188,7 @@ function Sidenav({ color, brandName, routes, ...rest }) {
                 })
               }
             >
-              <SimmmpleLogo size="24px" />
+              <InsyteLogo size="36px" />
             </VuiBox>
             <VuiTypography
               variant="button"
