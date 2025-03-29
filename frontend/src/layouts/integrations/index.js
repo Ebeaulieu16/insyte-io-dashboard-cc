@@ -40,7 +40,7 @@ import { IoCheckmarkCircle, IoCloseCircle, IoInformationCircle } from "react-ico
 import { Link } from "react-router-dom";
 
 // API utility
-import api from "utils/api";
+import api, { isBackendAvailable } from "utils/api";
 
 function Integrations() {
   const { gradients } = colors;
@@ -51,6 +51,7 @@ function Integrations() {
   const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ show: false, message: "", severity: "info" });
+  const [isDemo, setIsDemo] = useState(false);
 
   // Display URL parameters as alerts (for OAuth redirects)
   useEffect(() => {
@@ -83,8 +84,19 @@ function Integrations() {
         setLoading(true);
         console.log("Fetching integration status...");
         
-        // Fallback data for testing
-        let fallbackData = [
+        // Check if we're in demo mode
+        const backendAvailable = localStorage.getItem('backendAvailable') === 'true';
+        if (!backendAvailable) {
+          setIsDemo(true);
+          setAlert({
+            show: true,
+            message: "Running in demo mode - Backend server not available",
+            severity: "info"
+          });
+        }
+        
+        // Default/fallback data that will always be used if API fails
+        const defaultIntegrations = [
           {
             platform: "youtube",
             status: "connected",
@@ -134,7 +146,7 @@ function Integrations() {
           console.error("API call failed, using fallback data:", apiError);
           
           // Use fallback data if API fails
-          integrationsList = fallbackData.map(integration => ({
+          integrationsList = defaultIntegrations.map(integration => ({
             id: integration.platform,
             name: getPlatformName(integration.platform),
             description: getPlatformDescription(integration.platform),
@@ -267,6 +279,14 @@ function Integrations() {
           <VuiTypography variant="button" color="text" fontWeight="regular">
             Connect your accounts to enhance tracking and automation
           </VuiTypography>
+          
+          {isDemo && (
+            <VuiBox mt={2} p={2} borderRadius="lg" bgColor="info">
+              <VuiTypography variant="button" color="white" fontWeight="medium">
+                Demo Mode - Backend server is not running. Showing sample integration data.
+              </VuiTypography>
+            </VuiBox>
+          )}
         </VuiBox>
 
         {/* Debug Info */}

@@ -6,8 +6,46 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000, // 15 seconds timeout
+  timeout: 5000, // Reduced to 5 seconds to fail faster
 });
+
+// Check if backend is available
+let isBackendAvailable = false;
+
+// Try to ping backend once at startup
+const checkBackendAvailability = () => {
+  console.log("Checking backend availability...");
+  
+  // Set a flag in localStorage to avoid showing too many errors
+  const lastCheckTime = localStorage.getItem('backendCheckTime');
+  const now = Date.now();
+  
+  // Only check once every 5 minutes
+  if (lastCheckTime && (now - parseInt(lastCheckTime, 10)) < 5 * 60 * 1000) {
+    console.log("Using cached backend availability status");
+    isBackendAvailable = localStorage.getItem('backendAvailable') === 'true';
+    return;
+  }
+  
+  // Ping the backend
+  api.get('/')
+    .then(() => {
+      console.log("Backend is available");
+      isBackendAvailable = true;
+      localStorage.setItem('backendAvailable', 'true');
+    })
+    .catch(() => {
+      console.warn("Backend is not available, running in demo mode");
+      isBackendAvailable = false;
+      localStorage.setItem('backendAvailable', 'false');
+    })
+    .finally(() => {
+      localStorage.setItem('backendCheckTime', now.toString());
+    });
+};
+
+// Check backend availability on startup
+checkBackendAvailability();
 
 // Request interceptor
 api.interceptors.request.use(
@@ -32,6 +70,48 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Handle network errors (backend not running)
+    if (error.code === 'ECONNABORTED' || !error.response) {
+      console.warn("Backend not responding - running in demo mode");
+      isBackendAvailable = false;
+      localStorage.setItem('backendAvailable', 'false');
+      
+      // For integrations status endpoint, provide mock data
+      if (error.config && error.config.url.includes('/api/integrations/status')) {
+        console.info("Returning mock data for integrations");
+        return Promise.resolve({
+          data: {
+            integrations: [
+              {
+                platform: "youtube",
+                status: "disconnected",
+                last_sync: null,
+                account_name: null
+              },
+              {
+                platform: "stripe", 
+                status: "disconnected",
+                last_sync: null,
+                account_name: null
+              },
+              {
+                platform: "calendly",
+                status: "disconnected",
+                last_sync: null,
+                account_name: null
+              },
+              {
+                platform: "calcom",
+                status: "disconnected",
+                last_sync: null,
+                account_name: null
+              }
+            ]
+          }
+        });
+      }
+    }
+    
     // Handle specific error cases
     if (error.response) {
       // The request was made and the server responded with a status code
@@ -77,4 +157,5 @@ api.interceptors.response.use(
   }
 );
 
-export default api; 
+export default api;
+export { isBackendAvailable }; 
