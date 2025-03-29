@@ -144,7 +144,7 @@ export default function App() {
             <Sidenav
               color={sidenavColor}
               brand=""
-              brandName="INSYTE DASHBOARD"
+              brandName="Insyte Dashboard"
               routes={routes}
               onMouseEnter={handleOnMouseEnter}
               onMouseLeave={handleOnMouseLeave}
@@ -182,7 +182,7 @@ export default function App() {
           <Sidenav
             color={sidenavColor}
             brand=""
-            brandName="INSYTE DASHBOARD"
+            brandName="Insyte Dashboard"
             routes={routes}
             onMouseEnter={handleOnMouseEnter}
             onMouseLeave={handleOnMouseLeave}

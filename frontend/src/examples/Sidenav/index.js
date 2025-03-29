@@ -175,12 +175,14 @@ function Sidenav({ color, brandName, routes, ...rest }) {
               {
                 display: "flex",
                 alignItems: "center",
-                margin: "0 auto",
+                justifyContent: "center",
+                width: "100%"
               })
             }
           >
             <VuiBox
               display="flex"
+              alignItems="center"
               sx={
                 ((theme) => sidenavLogoLabel(theme, { miniSidenav, transparentSidenav }),
                 {
@@ -197,12 +199,14 @@ function Sidenav({ color, brandName, routes, ...rest }) {
               fontSize={14}
               letterSpacing={2}
               fontWeight="medium"
+              ml={1}
               sx={
                 ((theme) => sidenavLogoLabel(theme, { miniSidenav, transparentSidenav }),
                 {
                   opacity: miniSidenav || (miniSidenav && transparentSidenav) ? 0 : 1,
                   maxWidth: miniSidenav || (miniSidenav && transparentSidenav) ? 0 : "100%",
-                  margin: "0 auto",
+                  display: "flex",
+                  alignItems: "center",
                 })
               }
             >
