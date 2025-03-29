@@ -23,7 +23,7 @@ import colors from "assets/theme/base/colors";
 import rgba from "assets/theme/functions/rgba";
 import pxToRem from "assets/theme/functions/pxToRem";
 
-const { dark, transparent, white, info } = colors;
+const { dark, transparent, white, info, primary } = colors;
 
 export default {
   styleOverrides: {
@@ -63,6 +63,13 @@ export default {
           white.main,
           0.5
         )}, ${rgba(white.main, 0)}) !important`,
+      },
+
+      "&.MuiDivider-gradientOwner": {
+        backgroundImage: `linear-gradient(to right, ${rgba(primary.main, 0)}, ${rgba(
+          primary.main,
+          1
+        )}, ${rgba(primary.main, 0)}) !important`,
       },
     },
   },

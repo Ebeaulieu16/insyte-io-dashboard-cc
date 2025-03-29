@@ -87,7 +87,7 @@ export const lineChartOptionsDashboard = {
       opacityTo: 0,
       stops: [],
     },
-    colors: ["#0075FF", "#2CD9FF"],
+    colors: ["#FF8700", "#FF8700"],
   },
-  colors: ["#0075FF", "#2CD9FF"],
+  colors: ["#FF8700", "#FF8700"],
 };

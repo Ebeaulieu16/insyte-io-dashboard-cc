@@ -8,7 +8,7 @@ import linearGradient from 'assets/theme/functions/linearGradient';
 import CircularProgress from '@mui/material/CircularProgress';
 
 function ReferralTracking() {
-	const { info, gradients } = colors;
+	const { info, gradients, primary } = colors;
 	const { cardContent } = gradients;
 
 	return (
@@ -33,7 +33,7 @@ function ReferralTracking() {
 						alignItems='center'
 						bgColor='#22234B'
 						sx={{ width: '37px', height: '37px', cursor: 'pointer', borderRadius: '12px' }}>
-						<FaEllipsisH color={info.main} size='18px' />
+						<FaEllipsisH color={primary.main} size='18px' />
 					</VuiBox>
 				</VuiBox>
 				<VuiBox

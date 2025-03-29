@@ -23,7 +23,7 @@ import borders from "assets/theme/base/borders";
 // Vision UI Dashboard React helper functions
 import pxToRem from "assets/theme/functions/pxToRem";
 
-const { grey, info } = colors;
+const { grey, info, primary } = colors;
 const { borderRadius } = borders;
 
 export default {
@@ -56,7 +56,7 @@ export default {
     indicator: {
       height: "100%",
       borderRadius: borderRadius.lg,
-      backgroundColor: info.main,
+      backgroundColor: primary.main,
       transition: "all 500ms ease",
     },
   },

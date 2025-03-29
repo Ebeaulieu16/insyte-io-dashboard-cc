@@ -26,7 +26,7 @@ import rgba from "assets/theme/functions/rgba";
 import pxToRem from "assets/theme/functions/pxToRem";
 import linearGradient from "assets/theme/functions/linearGradient";
 
-const { white, light, gradients } = colors;
+const { white, light, gradients, transparent } = colors;
 const { borderWidth } = borders;
 const { md } = boxShadows;
 
@@ -55,8 +55,8 @@ export default {
         transform: `translate(${pxToRem(22)}, -50%)`,
 
         "& + .MuiSwitch-track": {
-          backgroundColor: `${rgba(gradients.dark.state, 0.95)} !important`,
-          borderColor: `${rgba(gradients.dark.state, 0.95)} !important`,
+          backgroundColor: `${transparent.main} !important`,
+          backgroundImage: linearGradient(gradients.primary.main, gradients.primary.state),
           opacity: 1,
         },
       },

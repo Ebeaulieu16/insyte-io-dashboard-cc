@@ -182,9 +182,9 @@ export const lineChartOptionsDashboard = {
       opacityTo: 0,
       stops: [],
     },
-    colors: ["#0075FF", "#2CD9FF"],
+    colors: ["#FF8700", "#FF8700"],
   },
-  colors: ["#0075FF", "#2CD9FF"],
+  colors: ["#FF8700", "#FF8700"],
 };
 
 export const lineChartDataProfile1 = [
@@ -270,9 +270,9 @@ export const lineChartOptionsProfile1 = {
       opacityTo: 0,
       stops: [],
     },
-    colors: ["#01B574"],
+    colors: ["#14D964"],
   },
-  colors: ["#01B574"],
+  colors: ["#14D964"],
 };
 
 export const lineChartDataProfile2 = [
@@ -358,7 +358,7 @@ export const lineChartOptionsProfile2 = {
       opacityTo: 0,
       stops: [],
     },
-    colors: ["#0075FF"],
+    colors: ["#FF8700"],
   },
-  colors: ["#0075FF"],
+  colors: ["#FF8700"],
 };

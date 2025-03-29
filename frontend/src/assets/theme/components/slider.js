@@ -44,16 +44,15 @@ export default {
     },
 
     rail: {
-      height: pxToRem(3),
+      height: "3px !important",
       backgroundColor: light.main,
       borderRadius: borderRadius.sm,
     },
 
     track: {
-      backgroundImage: linearGradient(gradients.info.main, gradients.info.state),
-      height: pxToRem(6),
+      backgroundImage: linearGradient(gradients.primary.main, gradients.primary.state),
+      height: "3px !important",
       position: "relative",
-      top: pxToRem(2),
       border: "none",
       borderRadius: borderRadius.lg,
       zIndex: 1,

@@ -23,6 +23,7 @@ import {
   CircularProgress,
   Typography,
   Chip,
+  Stack,
 } from "@mui/material";
 import { styled, alpha } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
@@ -30,6 +31,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import InfoIcon from "@mui/icons-material/Info";
 import NoDataIcon from "@mui/icons-material/InfoOutlined";
 import AnalyticsIcon from "@mui/icons-material/Analytics";
+import FaLink from "@mui/icons-material/Link";
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
@@ -396,17 +398,22 @@ function UTMLinkTable({ dateRange }) {
                   </VuiTypography>
                 </TableCell>
                 <TableCell align="center">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent row click when clicking the analytics button
-                      handleRowClick(link.slug);
-                    }}
-                    sx={{ color: colors.info.main }}
-                    title="View Deep Analytics"
-                  >
-                    <AnalyticsIcon fontSize="small" />
-                  </IconButton>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <FaLink 
+                      sx={{ color: colors.primary.main }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent row click when clicking the analytics button
+                        handleRowClick(link.slug);
+                      }}
+                      sx={{ color: colors.primary.main }}
+                      title="View Deep Analytics"
+                    >
+                      <AnalyticsIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
                 </TableCell>
               </TableRow>
             ))}

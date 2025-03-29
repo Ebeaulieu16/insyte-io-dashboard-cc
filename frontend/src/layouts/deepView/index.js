@@ -108,7 +108,7 @@ function DeepView() {
               
               {analyticsData && (
                 <VuiBox
-                  bgcolor="info.main"
+                  bgcolor="primary.main"
                   borderRadius="lg"
                   p={1}
                   px={2}

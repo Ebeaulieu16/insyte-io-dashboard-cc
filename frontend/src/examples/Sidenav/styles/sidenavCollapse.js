@@ -58,7 +58,7 @@ function collapseIconBox(theme, ownerState) {
   const { palette, transitions, breakpoints, boxShadows, borders, functions } = theme;
   const { active, color } = ownerState;
 
-  const { white, info, gradients, transparent, sidenav } = palette;
+  const { white, info, primary, gradients, transparent, sidenav } = palette;
   const { md } = boxShadows;
   const { borderRadius } = borders;
   const { pxToRem } = functions;
@@ -88,7 +88,7 @@ function collapseIconBox(theme, ownerState) {
         if (!active) {
           background = sidenav.button;
         } else if (color === "default") {
-          background = info.main;
+          background = primary.main;
         } else if (color === "warning") {
           background = gradients.warning.main;
         } else {

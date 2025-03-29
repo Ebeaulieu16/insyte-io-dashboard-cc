@@ -89,7 +89,7 @@ function FunnelAnalysis({ data }) {
     },
     colors: [
       primary.main,
-      info.main,
+      primary.focus,
       warning.main,
       success.main,
     ],
@@ -153,11 +153,11 @@ function FunnelAnalysis({ data }) {
         <Grid container spacing={3} mb={3}>
           <Grid item xs={12} md={3}>
             <VuiBox 
-              bgcolor="rgba(0, 117, 255, 0.1)" 
+              bgcolor="rgba(255, 135, 0, 0.1)" 
               borderRadius="lg" 
               p={2} 
               textAlign="center"
-              border="1px solid rgba(0, 117, 255, 0.3)"
+              border="1px solid rgba(255, 135, 0, 0.3)"
             >
               <VuiTypography variant="button" color="text" fontWeight="regular">
                 Click → Book
@@ -169,11 +169,11 @@ function FunnelAnalysis({ data }) {
           </Grid>
           <Grid item xs={12} md={3}>
             <VuiBox 
-              bgcolor="rgba(44, 217, 255, 0.1)" 
+              bgcolor="rgba(255, 135, 0, 0.1)" 
               borderRadius="lg" 
               p={2} 
               textAlign="center"
-              border="1px solid rgba(44, 217, 255, 0.3)"
+              border="1px solid rgba(255, 135, 0, 0.3)"
             >
               <VuiTypography variant="button" color="text" fontWeight="regular">
                 Book → Live

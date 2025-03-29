@@ -25,7 +25,7 @@ import pxToRem from "assets/theme/functions/pxToRem";
 import linearGradient from "assets/theme/functions/linearGradient";
 
 const { borderWidth, borderColor } = borders;
-const { transparent, gradients, info } = colors;
+const { transparent, gradients, info, primary } = colors;
 
 export default {
   styleOverrides: {
@@ -51,7 +51,7 @@ export default {
       },
 
       "&.Mui-focusVisible": {
-        border: `${borderWidth[2]} solid ${info.main} !important`,
+        border: `${borderWidth[2]} solid ${primary.main} !important`,
       },
     },
 

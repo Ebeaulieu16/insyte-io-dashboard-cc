@@ -60,7 +60,7 @@ function OrdersOverview() {
       </VuiBox>
       <VuiBox>
         <TimelineItem
-          icon={<FaBell size="16px" color={palette.info.main} />}
+          icon={<FaBell size="16px" color={palette.primary.main} />}
           title="$2400, Design changes"
           dateTime="22 DEC 7:20 PM"
         />

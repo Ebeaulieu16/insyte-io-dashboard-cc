@@ -9,7 +9,7 @@ import linearGradient from 'assets/theme/functions/linearGradient';
 import CircularProgress from '@mui/material/CircularProgress';
 
 const SatisfactionRate = () => {
-	const { info, gradients } = colors;
+	const { info, gradients, primary } = colors;
 	const { cardContent } = gradients;
 
 	return (
@@ -37,7 +37,7 @@ const SatisfactionRate = () => {
 							}}>
 							<VuiBox
 								sx={{
-									background: info.main,
+									background: primary.main,
 									transform: 'translateY(-50%)',
 									width: '50px',
 									height: '50px',

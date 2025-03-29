@@ -149,7 +149,7 @@ function DashboardNavbar({ absolute, light, isMini }) {
                   [breakpoints.only("sm")]: {
                     maxWidth: "80px",
                   },
-                  backgroundColor: "info.main !important",
+                  backgroundColor: "primary.main !important",
                 })}
               />
             </VuiBox>

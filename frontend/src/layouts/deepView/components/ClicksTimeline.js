@@ -22,7 +22,7 @@ import VuiTypography from "components/VuiTypography";
 import colors from "assets/theme/base/colors";
 
 function ClicksTimeline({ clicksData }) {
-  const { info, gradients } = colors;
+  const { info, gradients, primary } = colors;
   const { cardContent } = gradients;
   
   // Format date for display
@@ -78,7 +78,7 @@ function ClicksTimeline({ clicksData }) {
     stroke: {
       width: 3,
       curve: 'smooth',
-      colors: [info.main],
+      colors: [primary.main],
     },
     grid: {
       borderColor: "#56577A",
@@ -135,7 +135,7 @@ function ClicksTimeline({ clicksData }) {
     },
     markers: {
       size: 5,
-      colors: info.main,
+      colors: primary.main,
       strokeColors: "#1A1E2D",
       strokeWidth: 2,
       hover: {
