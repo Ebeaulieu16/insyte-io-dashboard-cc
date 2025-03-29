@@ -294,7 +294,7 @@ function UTMLinkTable({ dateRange }) {
             <TableRow>
               <TableCell>
                 <VuiTypography variant="caption" color="text" fontWeight="medium">
-                  CAMPAIGN
+                  VIDEO TITLE
                 </VuiTypography>
               </TableCell>
               <TableCell>

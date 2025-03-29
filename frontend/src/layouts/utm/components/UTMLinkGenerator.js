@@ -165,16 +165,16 @@ function UTMLinkGenerator({ onSuccess }) {
     <VuiBox>
       <form onSubmit={handleSubmit}>
         <Grid container spacing={3}>
-          {/* Campaign Title Input */}
+          {/* Video Title Input */}
           <Grid item xs={12}>
             <VuiBox mb={1} ml={0.5}>
               <VuiTypography component="label" variant="button" color="white" fontWeight="medium">
-                Campaign Title
+                Video Title
               </VuiTypography>
             </VuiBox>
             <VuiInput
               type="text"
-              placeholder="e.g., Scale Your Content Agency"
+              placeholder="e.g., How to Scale Your YouTube Channel"
               value={title}
               onChange={handleTitleChange}
               error={!!errors.title}

@@ -57,7 +57,7 @@ function UTMGenerator() {
                       UTM Link Generator
                     </VuiTypography>
                     <VuiTypography variant="button" color="text" fontWeight="regular">
-                      Create tracking links for your campaigns that redirect through your domain
+                      Create tracking links for your YouTube videos to monitor engagement and revenue
                     </VuiTypography>
                   </VuiBox>
                   <VuiBox p={3}>

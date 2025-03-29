@@ -96,8 +96,8 @@ function DeepView() {
                 
                 {analyticsData && (
                   <VuiBox mt={1}>
-                    <VuiTypography variant="subtitle2" fontWeight="regular" color="text">
-                      Campaign: {analyticsData.title}
+                    <VuiTypography variant="button" color="text" fontWeight="regular">
+                      Video: {analyticsData.title}
                     </VuiTypography>
                     <VuiTypography variant="caption" fontWeight="regular" color="text">
                       UTM Link: {analyticsData.short_url}
