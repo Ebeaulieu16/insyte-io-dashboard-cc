@@ -36,6 +36,18 @@ services:
         sync: false
     healthCheckPath: /
 
+  - type: web
+    name: insyte-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          name: insyte-backend
+          type: web
+          property: url
+
 databases:
   - name: insyte-db
     plan: free

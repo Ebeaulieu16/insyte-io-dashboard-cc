@@ -2,7 +2,7 @@
 Payment model for tracking payments.
 """
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, Index, Float
+from sqlalchemy import Column, String, DateTime, ForeignKey, Index, Float, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -12,6 +12,7 @@ class Payment(BaseModel):
     """
     Model for tracking payments.
     Records email, amount, currency, and timestamp information.
+    Also tracks connected Stripe accounts and dashboard users.
     """
     __tablename__ = "payments"
     
@@ -21,6 +22,10 @@ class Payment(BaseModel):
     amount = Column(Float, nullable=False)
     currency = Column(String(3), nullable=False, default="USD")  # ISO 4217 currency code
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    
+    # New columns for tracking connected Stripe accounts
+    dashboard_user_id = Column(Integer, nullable=True, index=True)
+    stripe_account_id = Column(String(255), nullable=True, index=True)
     
     # Relationships
     video_link = relationship("VideoLink", back_populates="payments")
@@ -34,4 +39,4 @@ class Payment(BaseModel):
     )
     
     def __repr__(self):
-        return f"<Payment(id={self.id}, slug='{self.slug}', amount={self.amount}, currency='{self.currency}')>" 
+        return f"<Payment(id={self.id}, slug='{self.slug}', amount={self.amount}, currency='{self.currency}', account='{self.stripe_account_id}')>" 

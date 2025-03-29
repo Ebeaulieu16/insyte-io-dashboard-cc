@@ -88,6 +88,36 @@ Quick start options:
 
 [![Deploy to Genezio](https://raw.githubusercontent.com/Genez-io/graphics/main/svg/deploy-button.svg)](https://app.genez.io/start/deploy?repository=https://github.com/creativetimofficial/vision-ui-dashboard-react&utm_source=github&utm_medium=referral&utm_campaign=github-creativetim&utm_term=deploy-project&utm_content=button-head)
 
+## Deployment to Render
+
+This frontend application is configured to be deployed on Render as a static site.
+
+### Automatic Deployment with render.yaml
+
+The easiest way to deploy is using the provided `render.yaml` file at the root of the project. This sets up both the backend and frontend in one go.
+
+### Manual Deployment
+
+If you need to manually deploy just the frontend:
+
+1. Create a new Static Site on Render
+2. Connect to your GitHub repository
+3. Set the following configuration:
+   - Build Command: `cd frontend && npm install && npm run build`
+   - Publish Directory: `frontend/build`
+4. Add the following environment variable:
+   - `REACT_APP_API_URL`: URL of your backend API (e.g., `https://insyte-backend.onrender.com`)
+
+### Important Notes
+
+- The application uses React Router, so it includes configuration for proper routing of SPAs in static hosting:
+  - A `_redirects` file in the `public` directory
+  - A `static.json` file for environments that support it
+  - A `netlify.toml` file for Netlify deployments
+
+- Make sure your backend API URL is correctly set in the REACT_APP_API_URL environment variable.
+- All API requests are configured to use this URL.
+
 ## Preparation
 
 1. Download and Install NodeJs 16 from the [official website](https://nodejs.org/en/about/previous-releases) or use [nvm](https://github.com/nvm-sh/nvm) to quickly switch versions.

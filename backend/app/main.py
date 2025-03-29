@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routes
-from app.routes import dashboard, youtube, sales, auth, utm
+from app.routes import dashboard, youtube, sales, auth, utm, payments
 
 # Import database initialization
 from app.database import engine, Base
@@ -38,6 +38,7 @@ app.include_router(youtube.router)
 app.include_router(sales.router)
 app.include_router(auth.router)
 app.include_router(utm.router)
+app.include_router(payments.router)
 
 @app.on_event("startup")
 async def startup():

@@ -13,10 +13,11 @@ import json
 import httpx
 import os
 from urllib.parse import urlencode
+import jwt
 
 from app.database import get_db
-from app.models.integration import Integration, IntegrationType
-from app.schemas.integration import IntegrationStatus, IntegrationStatusList, IntegrationUpdate, IntegrationCreate
+from app.models.integration import Integration, IntegrationType, IntegrationStatus
+from app.schemas.integration import IntegrationStatusList, IntegrationUpdate, IntegrationCreate
 
 router = APIRouter(
     tags=["authentication"],
@@ -26,6 +27,9 @@ router = APIRouter(
 # Configuration
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 APP_URL = os.getenv("APP_URL", "http://localhost:8000")
+JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-do-not-use-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION = 30  # days
 
 # OAuth configuration
 OAUTH_CONFIG = {
@@ -73,6 +77,25 @@ def get_oauth_config(platform: str):
         )
     return OAUTH_CONFIG[platform]
 
+# Get user ID from request (session or JWT)
+def get_user_id(request: Request) -> int:
+    """Extract user ID from session or JWT token."""
+    # In a real app, you would use proper session management or JWT tokens
+    # This is a simplified version that assumes a user ID in the session or query param
+    
+    # Try to get from session first
+    user_id = request.session.get("user_id") if hasattr(request, "session") else None
+    
+    # Then try query param (for testing)
+    if not user_id:
+        user_id = request.query_params.get("user_id", "1")
+    
+    # Ensure it's an integer
+    try:
+        return int(user_id)
+    except (TypeError, ValueError):
+        return 1  # Default user ID for testing
+
 # API routes
 @router.get("/auth/{platform}")
 async def initiate_auth(
@@ -92,11 +115,11 @@ async def initiate_auth(
     # Validate platform
     config = get_oauth_config(platform)
     
-    # Generate state token to prevent CSRF
-    state = secrets.token_urlsafe(32)
+    # Get user ID from session or request
+    user_id = get_user_id(request)
     
-    # Store state in the session or database
-    # For simplicity, we'll return it in the URL but should use session in production
+    # Generate state token to prevent CSRF
+    state = f"{user_id}:{secrets.token_urlsafe(32)}"
     
     # Build authorization URL
     params = {
@@ -109,108 +132,180 @@ async def initiate_auth(
         "prompt": "consent",       # Force consent screen to get refresh token
     }
     
+    # For Stripe, add additional params for Connect
+    if platform == "stripe":
+        params.update({
+            "stripe_user[email]": request.query_params.get("email", ""),
+            "stripe_user[url]": request.query_params.get("website", ""),
+            "stripe_user[country]": request.query_params.get("country", "US"),
+        })
+    
     auth_url = f"{config['auth_url']}?{urlencode(params)}"
     
     # Redirect to authorization URL
     return RedirectResponse(url=auth_url)
 
 @router.get("/auth/{platform}/callback")
-async def auth_callback(
+async def oauth_callback(
     platform: str,
-    code: Optional[str] = None,
+    code: str,
     state: Optional[str] = None,
     error: Optional[str] = None,
-    background_tasks: BackgroundTasks = None,
+    request: Request = None,
     db: Session = Depends(get_db)
 ):
     """
-    Handle OAuth callback from platform.
+    OAuth callback endpoint.
+    Handles the redirect from the OAuth provider and exchanges the code for tokens.
     
     Args:
-        platform: The platform authentication is for
-        code: Authorization code from OAuth provider
-        state: State parameter for security verification
+        platform: The platform (youtube, stripe, etc.)
+        code: The authorization code from the OAuth provider
+        state: State parameter for CSRF protection
         error: Error message if authorization failed
         
     Returns:
-        RedirectResponse: Redirects back to the frontend application.
+        RedirectResponse: Redirects back to the frontend
     """
-    # Check for errors
+    # Check for error
     if error:
         return RedirectResponse(
             url=f"{FRONTEND_URL}/integrations?error={error}&platform={platform}"
         )
     
-    if not code:
-        return RedirectResponse(
-            url=f"{FRONTEND_URL}/integrations?error=missing_code&platform={platform}"
-        )
-    
-    # Get platform configuration
-    config = get_oauth_config(platform)
+    # Extract user ID from state
+    user_id = 1
+    if state and ":" in state:
+        try:
+            user_id, _ = state.split(":", 1)
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            user_id = 1
     
     try:
-        # Exchange code for access token
-        token_data = {
-            "client_id": config["client_id"],
-            "client_secret": config["client_secret"],
-            "code": code,
-            "grant_type": "authorization_code",
-            "redirect_uri": config["redirect_uri"]
-        }
+        # Get configuration
+        config = get_oauth_config(platform)
         
+        # Exchange code for tokens
         async with httpx.AsyncClient() as client:
-            response = await client.post(config["token_url"], data=token_data)
+            token_data = {
+                "client_id": config["client_id"],
+                "client_secret": config["client_secret"],
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": config["redirect_uri"]
+            }
             
+            # Make token request
+            response = await client.post(
+                config["token_url"],
+                data=token_data,
+                headers={"Accept": "application/json"}
+            )
+            
+            # Check response
             if response.status_code != 200:
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/integrations?error=token_exchange_failed&platform={platform}"
+                    url=f"{FRONTEND_URL}/integrations?error=token_error&platform={platform}"
                 )
             
+            # Parse token response
             token_info = response.json()
             
-            # Get account information (implementation differs by platform)
-            account_name, account_id = await get_account_info(platform, token_info["access_token"])
-            
-            # Store token in database
-            integration = db.query(Integration).filter(Integration.platform == platform).first()
-            
-            if not integration:
-                # Create new integration record
-                integration = Integration(
-                    platform=platform,
-                    is_connected=True,
-                    access_token=token_info["access_token"],
-                    refresh_token=token_info.get("refresh_token"),
-                    token_expires_at=datetime.utcnow() + timedelta(seconds=token_info.get("expires_in", 3600)),
-                    account_name=account_name,
-                    account_id=account_id
+            # Get access token
+            access_token = token_info.get("access_token")
+            if not access_token:
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/integrations?error=no_token&platform={platform}"
                 )
-                db.add(integration)
-            else:
+            
+            # Get refresh token (if available)
+            refresh_token = token_info.get("refresh_token")
+            
+            # Get token expiration (if available)
+            expires_in = token_info.get("expires_in")
+            expires_at = None
+            if expires_in:
+                expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+            
+            # Get account info
+            account_name, account_id = await get_account_info(platform, access_token)
+            
+            # Check if integration already exists for this user and platform
+            existing_integration = db.query(Integration).filter(
+                Integration.user_id == user_id,
+                Integration.platform == platform
+            ).first()
+            
+            if existing_integration:
                 # Update existing integration
-                integration.is_connected = True
-                integration.access_token = token_info["access_token"]
-                if "refresh_token" in token_info:
-                    integration.refresh_token = token_info["refresh_token"]
-                integration.token_expires_at = datetime.utcnow() + timedelta(seconds=token_info.get("expires_in", 3600))
-                integration.account_name = account_name
-                integration.account_id = account_id
+                existing_integration.access_token = access_token
+                if refresh_token:
+                    existing_integration.refresh_token = refresh_token
+                existing_integration.status = IntegrationStatus.CONNECTED
+                existing_integration.account_name = account_name
+                existing_integration.account_id = account_id
+                existing_integration.expires_at = expires_at
+                existing_integration.last_sync = datetime.now()
+                
+                # For Stripe, store additional metadata
+                if platform == "stripe" and not existing_integration.metadata:
+                    existing_integration.metadata = {}
+                
+                if platform == "stripe":
+                    # Store stripe-specific data
+                    stripe_user_id = token_info.get("stripe_user_id")
+                    if stripe_user_id and stripe_user_id != existing_integration.account_id:
+                        existing_integration.account_id = stripe_user_id
+                    
+                    existing_integration.metadata.update({
+                        "stripe_publishable_key": token_info.get("stripe_publishable_key"),
+                        "scope": token_info.get("scope"),
+                        "livemode": token_info.get("livemode", False)
+                    })
+                
+                db.commit()
+            else:
+                # Create new integration
+                integration = Integration(
+                    user_id=user_id,
+                    platform=platform,
+                    status=IntegrationStatus.CONNECTED,
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    account_name=account_name,
+                    account_id=account_id,
+                    expires_at=expires_at,
+                    last_sync=datetime.now()
+                )
+                
+                # For Stripe, store additional metadata
+                if platform == "stripe":
+                    stripe_user_id = token_info.get("stripe_user_id")
+                    if stripe_user_id and stripe_user_id != integration.account_id:
+                        integration.account_id = stripe_user_id
+                    
+                    integration.metadata = {
+                        "stripe_publishable_key": token_info.get("stripe_publishable_key"),
+                        "scope": token_info.get("scope"),
+                        "livemode": token_info.get("livemode", False)
+                    }
+                
+                db.add(integration)
+                db.commit()
             
-            db.commit()
-            
-            # Schedule initial data sync in the background
-            if background_tasks:
-                background_tasks.add_task(sync_platform_data, platform, db)
-            
-            # Redirect back to frontend with success message
+            # Redirect to the frontend with success message
             return RedirectResponse(
-                url=f"{FRONTEND_URL}/integrations?success=true&platform={platform}"
+                url=f"{FRONTEND_URL}/integrations?success=true&platform={platform}&account={account_name}"
             )
-    
+            
     except Exception as e:
+        # Log the error in production
+        print(f"OAuth error: {str(e)}")
+        
+        # Redirect to frontend with error
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/integrations?error={str(e)}&platform={platform}"
+            url=f"{FRONTEND_URL}/integrations?error=server_error&platform={platform}"
         )
 
 @router.delete("/api/integrations/{platform}", status_code=status.HTTP_200_OK)
@@ -339,10 +434,11 @@ async def get_account_info(platform: str, access_token: str) -> tuple:
                 return data.get("name", "Cal.com User"), str(data.get("id", ""))
     
     except Exception as e:
-        print(f"Error getting account info for {platform}: {str(e)}")
+        # Log the error in production
+        print(f"Error getting account info: {str(e)}")
     
-    # Default fallback
-    return f"{platform.title()} Account", ""
+    # Default values if we couldn't get account info
+    return f"{platform.capitalize()} Account", ""
 
 async def sync_platform_data(platform: str, db: Session):
     """
