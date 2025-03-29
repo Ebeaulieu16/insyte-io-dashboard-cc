@@ -24,6 +24,7 @@ import Icon from "@mui/material/Icon";
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
 import VuiTypography from "components/VuiTypography";
+import VuiButton from "components/VuiButton";
 
 // Vision UI Dashboard React example components
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
@@ -40,11 +41,17 @@ import DateFilter from "components/DateFilter";
 import VideoTable from "layouts/youtube/components/VideoTable";
 
 // React icons
-import { FaYoutube, FaEye, FaThumbsUp, FaComments } from "react-icons/fa";
+import { FaYoutube, FaEye, FaThumbsUp, FaComments, FaPlug } from "react-icons/fa";
 import { IoStatsChart, IoTimerOutline } from "react-icons/io5";
+import { Link } from "react-router-dom";
+import { AiFillYoutube } from "react-icons/ai";
 
 // Data
 import { videoPerformanceData } from "layouts/youtube/data/youtubeData";
+
+// React hooks
+import { useState, useEffect } from "react";
+import api from "utils/api";
 
 function YouTube() {
   const { gradients } = colors;
@@ -81,6 +88,27 @@ function YouTube() {
     return "$" + formatNumber(num);
   };
 
+  // State for YouTube connection status
+  const [isYoutubeConnected, setIsYoutubeConnected] = useState(false);
+  
+  // Check YouTube connection status
+  useEffect(() => {
+    const checkYoutubeConnection = async () => {
+      try {
+        const response = await api.get("/api/integrations/status");
+        const youtubeIntegration = response.data.integrations.find(
+          integration => integration.platform === "youtube"
+        );
+        setIsYoutubeConnected(youtubeIntegration && youtubeIntegration.status === "connected");
+      } catch (error) {
+        console.error("Failed to check YouTube connection status:", error);
+        setIsYoutubeConnected(false);
+      }
+    };
+    
+    checkYoutubeConnection();
+  }, []);
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -89,6 +117,54 @@ function YouTube() {
         <VuiBox display="flex" justifyContent="flex-end" mb={3}>
           <DateFilter onChange={handleDateChange} />
         </VuiBox>
+        
+        {/* YouTube Connection Prompt - Only show if not connected */}
+        {!isYoutubeConnected && (
+          <VuiBox mb={3}>
+            <Card>
+              <VuiBox p={3}>
+                <Grid container spacing={3} alignItems="center">
+                  <Grid item xs={12} lg={9}>
+                    <VuiBox display="flex" alignItems="center">
+                      <VuiBox 
+                        display="flex" 
+                        justifyContent="center" 
+                        alignItems="center" 
+                        bgColor="error" 
+                        width="50px" 
+                        height="50px" 
+                        borderRadius="lg" 
+                        shadow="md" 
+                        mr={2}
+                      >
+                        <FaPlug color="white" size="22px" />
+                      </VuiBox>
+                      <VuiBox>
+                        <VuiTypography variant="h5" color="white" fontWeight="bold">
+                          Connect Your YouTube Channel
+                        </VuiTypography>
+                        <VuiTypography variant="button" color="text" fontWeight="regular">
+                          Connect your YouTube channel to see real video performance data, track revenue, and get advanced analytics
+                        </VuiTypography>
+                      </VuiBox>
+                    </VuiBox>
+                  </Grid>
+                  <Grid item xs={12} lg={3}>
+                    <Link to="/integrations" style={{ textDecoration: "none" }}>
+                      <VuiButton
+                        color="error"
+                        variant="contained"
+                        fullWidth
+                      >
+                        Go to Integrations
+                      </VuiButton>
+                    </Link>
+                  </Grid>
+                </Grid>
+              </VuiBox>
+            </Card>
+          </VuiBox>
+        )}
 
         {/* YouTube Performance Metrics - Top Row */}
         <VuiBox mb={3}>

@@ -21,11 +21,13 @@ import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import Icon from "@mui/material/Icon";
 import { LinearProgress, Stack } from "@mui/material";
+import { Link } from "react-router-dom";
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
 import VuiTypography from "components/VuiTypography";
 import VuiProgress from "components/VuiProgress";
+import VuiButton from "components/VuiButton";
 
 // Vision UI Dashboard React example components
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
@@ -43,7 +45,7 @@ import DateFilter from "components/DateFilter";
 
 // React icons
 import { IoStatsChart, IoPersonSharp, IoCash, IoCheckmarkCircle } from "react-icons/io5";
-import { FaPhone, FaUserTimes, FaVideoSlash, FaChartLine } from "react-icons/fa";
+import { FaPhone, FaUserTimes, FaVideoSlash, FaChartLine, FaPlug } from "react-icons/fa";
 
 // Data
 import LineChart from "examples/Charts/LineCharts/LineChart";
@@ -67,6 +69,52 @@ function Dashboard() {
         {/* Date Filter */}
         <VuiBox display="flex" justifyContent="flex-end" mb={3}>
           <DateFilter onChange={handleDateChange} />
+        </VuiBox>
+
+        {/* Platform Integration Prompt */}
+        <VuiBox mb={3}>
+          <Card>
+            <VuiBox p={3}>
+              <Grid container spacing={3} alignItems="center">
+                <Grid item xs={12} lg={9}>
+                  <VuiBox display="flex" alignItems="center">
+                    <VuiBox 
+                      display="flex" 
+                      justifyContent="center" 
+                      alignItems="center" 
+                      bgColor="info" 
+                      width="50px" 
+                      height="50px" 
+                      borderRadius="lg" 
+                      shadow="md" 
+                      mr={2}
+                    >
+                      <FaPlug color="white" size="22px" />
+                    </VuiBox>
+                    <VuiBox>
+                      <VuiTypography variant="h5" color="white" fontWeight="bold">
+                        Connect Your Platforms
+                      </VuiTypography>
+                      <VuiTypography variant="button" color="text" fontWeight="regular">
+                        Connect your YouTube, Stripe, Calendly and other accounts to see your real data and metrics
+                      </VuiTypography>
+                    </VuiBox>
+                  </VuiBox>
+                </Grid>
+                <Grid item xs={12} lg={3}>
+                  <Link to="/integrations" style={{ textDecoration: "none" }}>
+                    <VuiButton
+                      color="info"
+                      variant="contained"
+                      fullWidth
+                    >
+                      Go to Integrations
+                    </VuiButton>
+                  </Link>
+                </Grid>
+              </Grid>
+            </VuiBox>
+          </Card>
         </VuiBox>
 
         {/* KPI Statistics */}
