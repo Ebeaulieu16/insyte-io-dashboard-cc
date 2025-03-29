@@ -14,10 +14,14 @@ import httpx
 import os
 from urllib.parse import urlencode
 import jwt
+import logging
 
 from app.database import get_db
 from app.models.integration import Integration, IntegrationType, IntegrationStatus
 from app.schemas.integration import IntegrationStatusList, IntegrationUpdate, IntegrationCreate
+
+# Get logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["authentication"],
@@ -356,29 +360,50 @@ async def get_integration_status(db: Session = Depends(get_db)):
     Returns:
         IntegrationStatusList: Status of each integration platform.
     """
-    # Get all platforms from config
-    platforms = list(OAUTH_CONFIG.keys())
-    
-    # Get integrations from database
-    integrations = db.query(Integration).all()
-    
-    # Create status dict with default values
-    status_dict = {platform: {"platform": platform, "status": "disconnected"} for platform in platforms}
-    
-    # Update with actual values from DB
-    for integration in integrations:
-        status = integration.status if isinstance(integration.status, str) else str(integration.status)
-        status_dict[integration.platform] = {
-            "platform": integration.platform,
-            "status": status,
-            "account_name": integration.account_name,
-            "last_sync": integration.last_sync
-        }
-    
-    # Convert to list and return
-    integrations_list = list(status_dict.values())
-    
-    return {"integrations": integrations_list}
+    try:
+        # Get all platforms from config
+        platforms = list(OAUTH_CONFIG.keys())
+        
+        # Get integrations from database
+        try:
+            integrations = db.query(Integration).all()
+            logger.info(f"Retrieved {len(integrations)} integrations from database")
+        except Exception as db_error:
+            logger.error(f"Database error fetching integrations: {str(db_error)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error: {str(db_error)}"
+            )
+        
+        # Create status dict with default values
+        status_dict = {platform: {"platform": platform, "status": "disconnected"} for platform in platforms}
+        
+        # Update with actual values from DB
+        for integration in integrations:
+            try:
+                status = integration.status if isinstance(integration.status, str) else str(integration.status)
+                status_dict[integration.platform] = {
+                    "platform": integration.platform,
+                    "status": status,
+                    "account_name": integration.account_name,
+                    "last_sync": integration.last_sync
+                }
+            except Exception as integration_error:
+                logger.error(f"Error processing integration {getattr(integration, 'id', 'unknown')}: {str(integration_error)}")
+                # Continue processing other integrations
+                continue
+        
+        # Convert to list and return
+        integrations_list = list(status_dict.values())
+        logger.info(f"Returning status for {len(integrations_list)} integrations")
+        
+        return {"integrations": integrations_list}
+    except Exception as e:
+        logger.error(f"Unexpected error in get_integration_status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving integration status: {str(e)}"
+        )
 
 # Helper functions for integration-specific operations
 async def get_account_info(platform: str, access_token: str) -> tuple:
