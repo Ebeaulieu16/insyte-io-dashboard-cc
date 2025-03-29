@@ -52,8 +52,8 @@ class Integration(BaseModel):
     # Last synced timestamp
     last_sync = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
-    # Additional metadata as JSON
-    metadata = Column(JSON, nullable=True)
+    # Additional metadata as JSON - renamed to avoid SQLAlchemy reserved name conflict
+    extra_data = Column(JSON, nullable=True)
     
     # Indexes
     __table_args__ = (

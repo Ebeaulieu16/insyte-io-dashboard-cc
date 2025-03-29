@@ -204,14 +204,14 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
                 if account.get("business_profile", {}).get("name"):
                     integration.account_name = account["business_profile"]["name"]
                 
-                # Update metadata with additional account information
-                if hasattr(integration, 'metadata') and integration.metadata is None:
-                    integration.metadata = {}
+                # Update extra_data with additional account information
+                if hasattr(integration, 'extra_data') and integration.extra_data is None:
+                    integration.extra_data = {}
                 
-                if hasattr(integration, 'metadata'):
-                    integration.metadata["charges_enabled"] = account.get("charges_enabled", False)
-                    integration.metadata["details_submitted"] = account.get("details_submitted", False)
-                    integration.metadata["payouts_enabled"] = account.get("payouts_enabled", False)
+                if hasattr(integration, 'extra_data'):
+                    integration.extra_data["charges_enabled"] = account.get("charges_enabled", False)
+                    integration.extra_data["details_submitted"] = account.get("details_submitted", False)
+                    integration.extra_data["payouts_enabled"] = account.get("payouts_enabled", False)
                 
                 if hasattr(integration, 'last_sync'):
                     integration.last_sync = datetime.now()
