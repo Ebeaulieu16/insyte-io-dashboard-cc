@@ -81,25 +81,83 @@ function Integrations() {
     const fetchIntegrationStatus = async () => {
       try {
         setLoading(true);
-        const response = await api.get("/api/integrations/status");
+        console.log("Fetching integration status...");
         
-        // Map API response to integrations with UI properties
-        const integrationsList = response.data.integrations.map(integration => ({
-          id: integration.platform,
-          name: getPlatformName(integration.platform),
-          description: getPlatformDescription(integration.platform),
-          connected: integration.status === "connected",
-          connectedSince: integration.last_sync,
-          accountName: integration.account_name,
-          icon: getPlatformIcon(integration.platform),
-          status: integration.status === "connected" ? "Active" : "Not Connected",
-          color: integration.status === "connected" ? "success" : "error",
-          scopes: getPlatformScopes(integration.platform)
-        }));
+        // Fallback data for testing
+        let fallbackData = [
+          {
+            platform: "youtube",
+            status: "connected",
+            last_sync: "2023-08-15T14:30:00Z",
+            account_name: "My YouTube Channel"
+          },
+          {
+            platform: "stripe",
+            status: "disconnected",
+            last_sync: null,
+            account_name: null
+          },
+          {
+            platform: "calendly",
+            status: "disconnected",
+            last_sync: null,
+            account_name: null
+          },
+          {
+            platform: "calcom",
+            status: "disconnected",
+            last_sync: null,
+            account_name: null
+          }
+        ];
         
+        let integrationsList = [];
+        
+        try {
+          const response = await api.get("/api/integrations/status");
+          console.log("API Response:", response.data);
+          
+          // Map API response to integrations with UI properties
+          integrationsList = response.data.integrations.map(integration => ({
+            id: integration.platform,
+            name: getPlatformName(integration.platform),
+            description: getPlatformDescription(integration.platform),
+            connected: integration.status === "connected",
+            connectedSince: integration.last_sync,
+            accountName: integration.account_name,
+            icon: getPlatformIcon(integration.platform),
+            status: integration.status === "connected" ? "Active" : "Not Connected",
+            color: integration.status === "connected" ? "success" : "error",
+            scopes: getPlatformScopes(integration.platform)
+          }));
+        } catch (apiError) {
+          console.error("API call failed, using fallback data:", apiError);
+          
+          // Use fallback data if API fails
+          integrationsList = fallbackData.map(integration => ({
+            id: integration.platform,
+            name: getPlatformName(integration.platform),
+            description: getPlatformDescription(integration.platform),
+            connected: integration.status === "connected",
+            connectedSince: integration.last_sync,
+            accountName: integration.account_name,
+            icon: getPlatformIcon(integration.platform),
+            status: integration.status === "connected" ? "Active" : "Not Connected",
+            color: integration.status === "connected" ? "success" : "error",
+            scopes: getPlatformScopes(integration.platform)
+          }));
+          
+          setAlert({
+            show: true,
+            message: "Using demo data - API connection failed",
+            severity: "warning"
+          });
+        }
+        
+        console.log("Processed integrations list:", integrationsList);
         setIntegrations(integrationsList);
       } catch (error) {
-        console.error("Failed to fetch integration status:", error);
+        console.error("Failed to fetch or process integration status:", error);
         setAlert({
           show: true,
           message: "Failed to fetch integration status",
@@ -211,163 +269,204 @@ function Integrations() {
           </VuiTypography>
         </VuiBox>
 
-        {/* Integration Cards */}
-        <Grid container spacing={3}>
-          {integrations.map((integration) => (
-            <Grid item xs={12} md={6} xl={3} key={integration.id}>
-              <Card sx={{ height: "100%" }}>
-                <VuiBox display="flex" flexDirection="column" p={3} height="100%">
-                  <VuiBox 
-                    display="flex" 
-                    justifyContent="center" 
-                    alignItems="center" 
-                    bgColor={integration.connected ? "success" : "error"} 
-                    width="60px" 
-                    height="60px" 
-                    borderRadius="lg" 
-                    shadow="md" 
-                    mb={3}
-                  >
-                    {integration.icon}
-                  </VuiBox>
-                  
-                  <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                    <VuiTypography variant="h5" color="white" fontWeight="bold">
-                      {integration.name}
-                    </VuiTypography>
-                    <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
-                      <VuiBox>
-                        {integration.connected ? (
-                          <FaSync size="16px" color="#16f9aa" />
-                        ) : (
-                          <IoInformationCircle size="16px" color="#fff" />
-                        )}
-                      </VuiBox>
-                    </Tooltip>
-                  </VuiBox>
-                  
-                  <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
-                    {integration.description}
-                  </VuiTypography>
-                  
-                  {/* Data Pulled Section */}
-                  <VuiBox mb="auto">
-                    <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
-                      Data Pulled:
-                    </VuiTypography>
-                    
-                    <VuiBox pl={1} mt={1}>
-                      {integration.scopes.map((scope, index) => (
-                        <VuiTypography 
-                          key={index} 
-                          variant="caption" 
-                          color="text" 
-                          fontWeight="regular"
-                          display="block"
-                          mb={0.5}
-                        >
-                          • {scope}
-                        </VuiTypography>
-                      ))}
-                    </VuiBox>
-                  </VuiBox>
-                  
-                  {/* Account Information (if connected) */}
-                  {integration.connected && integration.accountName && (
-                    <VuiBox mt={2} mb={2}>
-                      <Divider />
-                      <VuiBox mt={2} display="flex" alignItems="center">
-                        <VuiTypography variant="button" color="text" fontWeight="regular">
-                          Connected Account:
-                        </VuiTypography>
-                        <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
-                          {integration.accountName}
-                        </VuiTypography>
-                      </VuiBox>
-                    </VuiBox>
-                  )}
-                  
-                  {/* Status Indicator */}
-                  <VuiBox mt={2} display="flex" alignItems="center">
-                    {integration.connected ? (
-                      <IoCheckmarkCircle size="18px" color="#16f9aa" />
-                    ) : (
-                      <IoCloseCircle size="18px" color="#f44335" />
-                    )}
-                    <VuiTypography 
-                      variant="button" 
-                      color={integration.color} 
-                      fontWeight="medium" 
-                      ml={1}
-                    >
-                      {integration.status}
-                    </VuiTypography>
-                  </VuiBox>
-                  
-                  {/* Connect/Disconnect Button */}
-                  <VuiBox mt={2}>
-                    <VuiButton
-                      color={integration.connected ? "error" : "success"}
-                      variant="contained"
-                      fullWidth
-                      onClick={() => 
-                        integration.connected 
-                          ? handleDisconnect(integration.id)
-                          : handleConnect(integration.id)
-                      }
-                    >
-                      {integration.connected ? "Disconnect" : "Connect"}
-                    </VuiButton>
-                  </VuiBox>
-                </VuiBox>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+        {/* Debug Info */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card sx={{ mb: 3 }}>
+            <VuiBox p={3}>
+              <VuiTypography variant="button" color="white" fontWeight="bold">
+                Debug Info: 
+              </VuiTypography>
+              <VuiTypography variant="caption" color="text" fontWeight="regular" component="pre">
+                loading: {loading.toString()}<br/>
+                integrations count: {integrations.length}<br/>
+                {JSON.stringify(integrations, null, 2)}
+              </VuiTypography>
+            </VuiBox>
+          </Card>
+        )}
 
-        {/* UTM Link Generator Promo */}
-        <Card sx={{ mt: 3 }}>
-          <VuiBox p={3}>
-            <Grid container spacing={3} alignItems="center">
-              <Grid item xs={12} lg={9}>
-                <VuiBox display="flex" alignItems="center">
-                  <VuiBox 
-                    display="flex" 
-                    justifyContent="center" 
-                    alignItems="center" 
-                    bgColor="info" 
-                    width="40px" 
-                    height="40px" 
-                    borderRadius="lg" 
-                    shadow="md" 
-                    mr={2}
-                  >
-                    <FaLink color="white" size="18px" />
-                  </VuiBox>
-                  <VuiBox>
-                    <VuiTypography variant="h5" color="white" fontWeight="bold">
-                      Need to create a UTM tracking link?
-                    </VuiTypography>
-                    <VuiTypography variant="button" color="text" fontWeight="regular">
-                      Generate UTM links that work with your integrations for better attribution
-                    </VuiTypography>
-                  </VuiBox>
-                </VuiBox>
-              </Grid>
-              <Grid item xs={12} lg={3}>
-                <Link to="/utm-generator" style={{ textDecoration: "none" }}>
-                  <VuiButton
-                    color="info"
-                    variant="contained"
-                    fullWidth
-                  >
-                    Go to UTM Generator
-                  </VuiButton>
-                </Link>
-              </Grid>
+        {/* Loading State */}
+        {loading ? (
+          <Card>
+            <VuiBox p={3} display="flex" justifyContent="center" alignItems="center" height="200px">
+              <VuiTypography variant="button" color="text" fontWeight="regular">
+                Loading integrations...
+              </VuiTypography>
+            </VuiBox>
+          </Card>
+        ) : (
+          <>
+            {/* Integration Cards */}
+            <Grid container spacing={3}>
+              {integrations.length > 0 ? (
+                integrations.map((integration) => (
+                  <Grid item xs={12} md={6} xl={3} key={integration.id}>
+                    <Card sx={{ height: "100%" }}>
+                      <VuiBox display="flex" flexDirection="column" p={3} height="100%">
+                        <VuiBox 
+                          display="flex" 
+                          justifyContent="center" 
+                          alignItems="center" 
+                          bgColor={integration.connected ? "success" : "error"} 
+                          width="60px" 
+                          height="60px" 
+                          borderRadius="lg" 
+                          shadow="md" 
+                          mb={3}
+                        >
+                          {integration.icon}
+                        </VuiBox>
+                        
+                        <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                          <VuiTypography variant="h5" color="white" fontWeight="bold">
+                            {integration.name}
+                          </VuiTypography>
+                          <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
+                            <VuiBox>
+                              {integration.connected ? (
+                                <FaSync size="16px" color="#16f9aa" />
+                              ) : (
+                                <IoInformationCircle size="16px" color="#fff" />
+                              )}
+                            </VuiBox>
+                          </Tooltip>
+                        </VuiBox>
+                        
+                        <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
+                          {integration.description}
+                        </VuiTypography>
+                        
+                        {/* Data Pulled Section */}
+                        <VuiBox mb="auto">
+                          <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
+                            Data Pulled:
+                          </VuiTypography>
+                          
+                          <VuiBox pl={1} mt={1}>
+                            {integration.scopes.map((scope, index) => (
+                              <VuiTypography 
+                                key={index} 
+                                variant="caption" 
+                                color="text" 
+                                fontWeight="regular"
+                                display="block"
+                                mb={0.5}
+                              >
+                                • {scope}
+                              </VuiTypography>
+                            ))}
+                          </VuiBox>
+                        </VuiBox>
+                        
+                        {/* Account Information (if connected) */}
+                        {integration.connected && integration.accountName && (
+                          <VuiBox mt={2} mb={2}>
+                            <Divider />
+                            <VuiBox mt={2} display="flex" alignItems="center">
+                              <VuiTypography variant="button" color="text" fontWeight="regular">
+                                Connected Account:
+                              </VuiTypography>
+                              <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
+                                {integration.accountName}
+                              </VuiTypography>
+                            </VuiBox>
+                          </VuiBox>
+                        )}
+                        
+                        {/* Status Indicator */}
+                        <VuiBox mt={2} display="flex" alignItems="center">
+                          {integration.connected ? (
+                            <IoCheckmarkCircle size="18px" color="#16f9aa" />
+                          ) : (
+                            <IoCloseCircle size="18px" color="#f44335" />
+                          )}
+                          <VuiTypography 
+                            variant="button" 
+                            color={integration.color} 
+                            fontWeight="medium" 
+                            ml={1}
+                          >
+                            {integration.status}
+                          </VuiTypography>
+                        </VuiBox>
+                        
+                        {/* Connect/Disconnect Button */}
+                        <VuiBox mt={2}>
+                          <VuiButton
+                            color={integration.connected ? "error" : "success"}
+                            variant="contained"
+                            fullWidth
+                            onClick={() => 
+                              integration.connected 
+                                ? handleDisconnect(integration.id)
+                                : handleConnect(integration.id)
+                            }
+                          >
+                            {integration.connected ? "Disconnect" : "Connect"}
+                          </VuiButton>
+                        </VuiBox>
+                      </VuiBox>
+                    </Card>
+                  </Grid>
+                ))
+              ) : (
+                <Grid item xs={12}>
+                  <Card>
+                    <VuiBox p={3} display="flex" justifyContent="center">
+                      <VuiTypography variant="button" color="text" fontWeight="regular">
+                        No integration platforms available. Please try again later.
+                      </VuiTypography>
+                    </VuiBox>
+                  </Card>
+                </Grid>
+              )}
             </Grid>
-          </VuiBox>
-        </Card>
+
+            {/* UTM Link Generator Promo */}
+            <Card sx={{ mt: 3 }}>
+              <VuiBox p={3}>
+                <Grid container spacing={3} alignItems="center">
+                  <Grid item xs={12} lg={9}>
+                    <VuiBox display="flex" alignItems="center">
+                      <VuiBox 
+                        display="flex" 
+                        justifyContent="center" 
+                        alignItems="center" 
+                        bgColor="info" 
+                        width="40px" 
+                        height="40px" 
+                        borderRadius="lg" 
+                        shadow="md" 
+                        mr={2}
+                      >
+                        <FaLink color="white" size="18px" />
+                      </VuiBox>
+                      <VuiBox>
+                        <VuiTypography variant="h5" color="white" fontWeight="bold">
+                          Need to create a UTM tracking link?
+                        </VuiTypography>
+                        <VuiTypography variant="button" color="text" fontWeight="regular">
+                          Generate UTM links that work with your integrations for better attribution
+                        </VuiTypography>
+                      </VuiBox>
+                    </VuiBox>
+                  </Grid>
+                  <Grid item xs={12} lg={3}>
+                    <Link to="/utm-generator" style={{ textDecoration: "none" }}>
+                      <VuiButton
+                        color="info"
+                        variant="contained"
+                        fullWidth
+                      >
+                        Go to UTM Generator
+                      </VuiButton>
+                    </Link>
+                  </Grid>
+                </Grid>
+              </VuiBox>
+            </Card>
+          </>
+        )}
         
         {/* Snackbar Alert */}
         <Snackbar
