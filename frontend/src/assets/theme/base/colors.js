@@ -24,7 +24,7 @@
 export default {
   // Vision UI Colors
   background: {
-    default: "#0A0A0A",
+    default: "#2B2B2B",
   },
 
   sidenav: {
@@ -67,8 +67,8 @@ export default {
   },
 
   lightblue: {
-    main: "#009FFD",
-    focus: "#009FFD",
+    main: "#FF8700",
+    focus: "#FF8700",
   },
 
   orange: {
@@ -96,15 +96,15 @@ export default {
 
   // Other colors
   info: {
-    main: "#009FFD",
-    focus: "#009FFD",
+    main: "#FF8700",
+    focus: "#FF8700",
     charts: {
-      100: "#009FFD",
-      200: "#009FFD",
-      300: "#009FFD",
-      400: "#009FFD",
-      500: "#009FFD",
-      600: "#009FFD",
+      100: "#FF8700",
+      200: "#FF8700",
+      300: "#FF8700",
+      400: "#FF8700",
+      500: "#FF8700",
+      600: "#FF8700",
     },
   },
 
@@ -131,7 +131,7 @@ export default {
   dark: {
     main: "#0A0A0A",
     focus: "#1A1A1A",
-    body: "#0A0A0A",
+    body: "#2B2B2B",
   },
 
   gradients: {
@@ -143,7 +143,7 @@ export default {
 
     sidenav: {
       deg: "127.09",
-      main: "rgba(10, 10, 10, 0.94) 19.41%",
+      main: "rgba(43, 43, 43, 0.94) 19.41%",
       state: "rgba(26, 26, 26, 0.49) 76.65%",
     },
 
@@ -161,9 +161,9 @@ export default {
 
     cover: {
       deg: "159.02",
-      main: "#0A0A0A 14.25%",
+      main: "#2B2B2B 14.25%",
       state: "#1A1A1A 56.45%",
-      stateSecondary: "#0A0A0A 86.14%",
+      stateSecondary: "#2B2B2B 86.14%",
     },
 
     cardDark: {
@@ -226,8 +226,8 @@ export default {
     },
 
     info: {
-      main: "#009FFD",
-      state: "#009FFD",
+      main: "#FF8700",
+      state: "#FF8700",
     },
 
     success: {
@@ -332,9 +332,9 @@ export default {
     },
 
     info: {
-      main: "#009FFD",
-      state: "#009FFD",
-      border: "#009FFD",
+      main: "#FF8700",
+      state: "#FF8700",
+      border: "#FF8700",
     },
 
     success: {
@@ -382,8 +382,8 @@ export default {
     },
 
     info: {
-      basic: "#009FFD",
-      background: "#009FFD",
+      basic: "#FF8700",
+      background: "#FF8700",
       text: "#FFFFFF",
     },
 
