@@ -33,8 +33,7 @@ import typography from "assets/theme/base/typography";
 import colors from "assets/theme/base/colors";
 
 // React icons
-import { FaCreditCard, FaYoutube, FaCalendarAlt, FaSync, FaLink } from "react-icons/fa";
-import { SiCalDotCom } from "react-icons/si";
+import { FaCreditCard, FaYoutube, FaCalendarAlt, FaSync, FaLink, FaCalendarCheck } from "react-icons/fa";
 import { IoCheckmarkCircle, IoCloseCircle, IoInformationCircle } from "react-icons/io5";
 
 // React Router
@@ -144,7 +143,7 @@ function Integrations() {
       case "calendly":
         return <FaCalendarAlt size="30px" color="white" />;
       case "calcom":
-        return <SiCalDotCom size="30px" color="white" />;
+        return <FaCalendarCheck size="30px" color="white" />;
       default:
         return <Icon>link</Icon>;
     }
