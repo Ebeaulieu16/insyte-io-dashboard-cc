@@ -20,7 +20,7 @@
 import colors from "assets/theme/base/colors";
 import bgAdmin from "assets/images/body-background.png";
 
-const { info, dark } = colors;
+const { info, dark, primary } = colors;
 export default {
   html: {
     scrollBehavior: "smooth",
@@ -38,10 +38,10 @@ export default {
     textDecoration: "none !important",
   },
   "a.link, .link, a.link:link, .link:link, a.link:visited, .link:visited": {
-    color: `${info.main} !important`,
+    color: `${primary.main} !important`,
     transition: "color 150ms ease-in !important",
   },
   "a.link:hover, .link:hover, a.link:focus, .link:focus": {
-    color: `${info.focus} !important`,
+    color: `${primary.focus} !important`,
   },
 };
