@@ -118,54 +118,6 @@ function YouTube() {
           <DateFilter onChange={handleDateChange} />
         </VuiBox>
         
-        {/* YouTube Connection Prompt - Only show if not connected */}
-        {!isYoutubeConnected && (
-          <VuiBox mb={3}>
-            <Card>
-              <VuiBox p={3}>
-                <Grid container spacing={3} alignItems="center">
-                  <Grid item xs={12} lg={9}>
-                    <VuiBox display="flex" alignItems="center">
-                      <VuiBox 
-                        display="flex" 
-                        justifyContent="center" 
-                        alignItems="center" 
-                        bgColor="error" 
-                        width="50px" 
-                        height="50px" 
-                        borderRadius="lg" 
-                        shadow="md" 
-                        mr={2}
-                      >
-                        <FaPlug color="white" size="22px" />
-                      </VuiBox>
-                      <VuiBox>
-                        <VuiTypography variant="h5" color="white" fontWeight="bold">
-                          Connect Your YouTube Channel
-                        </VuiTypography>
-                        <VuiTypography variant="button" color="text" fontWeight="regular">
-                          Connect your YouTube channel to see real video performance data, track revenue, and get advanced analytics
-                        </VuiTypography>
-                      </VuiBox>
-                    </VuiBox>
-                  </Grid>
-                  <Grid item xs={12} lg={3}>
-                    <Link to="/integrations" style={{ textDecoration: "none" }}>
-                      <VuiButton
-                        color="error"
-                        variant="contained"
-                        fullWidth
-                      >
-                        Go to Integrations
-                      </VuiButton>
-                    </Link>
-                  </Grid>
-                </Grid>
-              </VuiBox>
-            </Card>
-          </VuiBox>
-        )}
-
         {/* YouTube Performance Metrics - Top Row */}
         <VuiBox mb={3}>
           <Grid container spacing={3}>

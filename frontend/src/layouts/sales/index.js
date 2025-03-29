@@ -96,54 +96,6 @@ function Sales() {
           <DateFilter onChange={handleDateChange} />
         </VuiBox>
 
-        {/* Stripe Connection Prompt - Only show if not connected */}
-        {!isStripeConnected && (
-          <VuiBox mb={3}>
-            <Card>
-              <VuiBox p={3}>
-                <Grid container spacing={3} alignItems="center">
-                  <Grid item xs={12} lg={9}>
-                    <VuiBox display="flex" alignItems="center">
-                      <VuiBox 
-                        display="flex" 
-                        justifyContent="center" 
-                        alignItems="center" 
-                        bgColor="info" 
-                        width="50px" 
-                        height="50px" 
-                        borderRadius="lg" 
-                        shadow="md" 
-                        mr={2}
-                      >
-                        <FaPlug color="white" size="22px" />
-                      </VuiBox>
-                      <VuiBox>
-                        <VuiTypography variant="h5" color="white" fontWeight="bold">
-                          Connect Your Stripe Account
-                        </VuiTypography>
-                        <VuiTypography variant="button" color="text" fontWeight="regular">
-                          Connect your Stripe account to track real payment data, revenue metrics, and customer transactions
-                        </VuiTypography>
-                      </VuiBox>
-                    </VuiBox>
-                  </Grid>
-                  <Grid item xs={12} lg={3}>
-                    <Link to="/integrations" style={{ textDecoration: "none" }}>
-                      <VuiButton
-                        color="info"
-                        variant="contained"
-                        fullWidth
-                      >
-                        Go to Integrations
-                      </VuiButton>
-                    </Link>
-                  </Grid>
-                </Grid>
-              </VuiBox>
-            </Card>
-          </VuiBox>
-        )}
-
         {/* Top metrics */}
         <VuiBox mb={3}>
           <Grid container spacing={3}>
