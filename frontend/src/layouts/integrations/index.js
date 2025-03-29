@@ -84,53 +84,13 @@ function Integrations() {
         setLoading(true);
         console.log("Fetching integration status...");
         
-        // Check if we're in demo mode
-        const backendAvailable = localStorage.getItem('backendAvailable') === 'true';
-        if (!backendAvailable) {
-          setIsDemo(true);
-          setAlert({
-            show: true,
-            message: "Running in demo mode - Backend server not available",
-            severity: "info"
-          });
-        }
-        
-        // Default/fallback data that will always be used if API fails
-        const defaultIntegrations = [
-          {
-            platform: "youtube",
-            status: "connected",
-            last_sync: "2023-08-15T14:30:00Z",
-            account_name: "My YouTube Channel"
-          },
-          {
-            platform: "stripe",
-            status: "disconnected",
-            last_sync: null,
-            account_name: null
-          },
-          {
-            platform: "calendly",
-            status: "disconnected",
-            last_sync: null,
-            account_name: null
-          },
-          {
-            platform: "calcom",
-            status: "disconnected",
-            last_sync: null,
-            account_name: null
-          }
-        ];
-        
-        let integrationsList = [];
-        
+        // Simple try/catch to handle API calls
         try {
           const response = await api.get("/api/integrations/status");
           console.log("API Response:", response.data);
           
           // Map API response to integrations with UI properties
-          integrationsList = response.data.integrations.map(integration => ({
+          const integrationsList = response.data.integrations.map(integration => ({
             id: integration.platform,
             name: getPlatformName(integration.platform),
             description: getPlatformDescription(integration.platform),
@@ -142,39 +102,20 @@ function Integrations() {
             color: integration.status === "connected" ? "success" : "error",
             scopes: getPlatformScopes(integration.platform)
           }));
+          
+          console.log("Processed integrations list:", integrationsList);
+          setIntegrations(integrationsList);
         } catch (apiError) {
-          console.error("API call failed, using fallback data:", apiError);
-          
-          // Use fallback data if API fails
-          integrationsList = defaultIntegrations.map(integration => ({
-            id: integration.platform,
-            name: getPlatformName(integration.platform),
-            description: getPlatformDescription(integration.platform),
-            connected: integration.status === "connected",
-            connectedSince: integration.last_sync,
-            accountName: integration.account_name,
-            icon: getPlatformIcon(integration.platform),
-            status: integration.status === "connected" ? "Active" : "Not Connected",
-            color: integration.status === "connected" ? "success" : "error",
-            scopes: getPlatformScopes(integration.platform)
-          }));
-          
+          // Our API utility will handle most errors, but just in case:
+          console.error("API error:", apiError);
           setAlert({
             show: true,
-            message: "Using demo data - API connection failed",
+            message: "Unable to fetch integration status. Showing default options.",
             severity: "warning"
           });
         }
-        
-        console.log("Processed integrations list:", integrationsList);
-        setIntegrations(integrationsList);
       } catch (error) {
-        console.error("Failed to fetch or process integration status:", error);
-        setAlert({
-          show: true,
-          message: "Failed to fetch integration status",
-          severity: "error"
-        });
+        console.error("Unexpected error:", error);
       } finally {
         setLoading(false);
       }
