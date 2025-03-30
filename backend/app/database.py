@@ -16,6 +16,11 @@ load_dotenv()
 # Set up logger
 logger = logging.getLogger(__name__)
 
+# Determine environment
+environment = os.getenv("ENV", "development").lower()
+is_production = environment == "production"
+logger.info(f"Running in {environment} environment")
+
 # Database URL will come from environment variables in production
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://emilebeaulieu@localhost:5432/insyte_dashboard")
 
@@ -31,16 +36,23 @@ if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://")
     logger.info("Using postgresql+psycopg:// driver")
 
-# Create engine with proper SSL configuration for Render
+# Configure connection arguments based on environment
+connect_args = {}
+if is_production:
+    # Only use SSL in production environment (Render)
+    connect_args["sslmode"] = "require"
+    logger.info("Using SSL mode for database connection (production)")
+else:
+    logger.info("Not using SSL mode for database connection (development)")
+
+# Create engine with environment-specific configuration
 try:
     logger.info("Creating database engine...")
     engine = create_engine(
         DATABASE_URL, 
-        echo=os.getenv("ENV", "development").lower() != "production",  # False in production, True in development
-        pool_pre_ping=True,  # Test connections before using them
-        connect_args={} if os.getenv("ENV", "development").lower() != "production" else {
-            "sslmode": "require"  # Required for Render PostgreSQL
-        }
+        echo=not is_production,  # Enable echo in development, disable in production
+        pool_pre_ping=True,      # Test connections before using them
+        connect_args=connect_args # Use environment-specific connection arguments
     )
     logger.info("Database engine created successfully")
 except Exception as e:

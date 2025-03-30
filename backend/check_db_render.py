@@ -17,6 +17,11 @@ def test_database_connection():
     print("Database Connection Test")
     print("========================")
     
+    # Get environment
+    environment = os.getenv("ENV", "development").lower()
+    is_production = environment == "production"
+    print(f"Environment: {environment}")
+    
     # Get database URL from environment
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
@@ -53,6 +58,14 @@ def test_database_connection():
         database_url = database_url.replace("postgresql://", "postgresql+psycopg://")
         print("Using postgresql+psycopg:// driver")
     
+    # Configure connect_args based on environment
+    connect_args = {}
+    if is_production:
+        connect_args["sslmode"] = "require"
+        print("Using SSL mode (production environment)")
+    else:
+        print("Not using SSL mode (development environment)")
+    
     # Test connection
     try:
         print("\nAttempting to connect to database...")
@@ -60,7 +73,7 @@ def test_database_connection():
             database_url,
             echo=False,
             pool_pre_ping=True,
-            connect_args={"sslmode": "require"}
+            connect_args=connect_args
         )
         
         # Try to connect and execute a simple query
