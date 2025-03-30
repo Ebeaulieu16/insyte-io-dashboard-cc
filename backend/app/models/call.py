@@ -11,10 +11,13 @@ from app.models.base import BaseModel
 
 class CallStatus(str, enum.Enum):
     """Enumeration of possible call statuses."""
-    BOOKED = "booked"
-    LIVE = "live"
-    NO_SHOW = "no_show"
-    RESCHEDULED = "rescheduled"
+    BOOKED = "booked"           # Initial state when call is scheduled
+    PENDING = "pending"         # Awaiting confirmation (maps to Cal.com PENDING)
+    CONFIRMED = "confirmed"     # Confirmed by both parties (maps to Cal.com ACCEPTED)
+    COMPLETED = "completed"     # Call successfully completed
+    CANCELLED = "cancelled"     # Call was cancelled (maps to Cal.com CANCELLED)
+    NO_SHOW = "no_show"         # Client didn't show up
+    RESCHEDULED = "rescheduled" # Call was moved to another time
 
 class Call(BaseModel):
     """

@@ -22,23 +22,27 @@ import VuiTypography from "components/VuiTypography";
 import colors from "assets/theme/base/colors";
 
 function FunnelAnalysis({ data }) {
-  const { info, success, primary, warning } = colors;
+  const { info, success, primary, warning, dark } = colors;
   
   // Calculate conversion rates
+  const viewToClickRate = data.views > 0 && data.clicks > 0 
+    ? ((data.clicks / data.views) * 100).toFixed(2)
+    : 0;
+    
   const clickToBookRate = data.calls.booked > 0 && data.clicks > 0 
     ? ((data.calls.booked / data.clicks) * 100).toFixed(2)
     : 0;
     
-  const bookToLiveRate = data.calls.live > 0 && data.calls.booked > 0
-    ? ((data.calls.live / data.calls.booked) * 100).toFixed(2)
+  const bookToCompleteRate = data.calls.completed > 0 && data.calls.booked > 0
+    ? ((data.calls.completed / data.calls.booked) * 100).toFixed(2)
     : 0;
     
-  const liveToClosedRate = data.deals.closed > 0 && data.calls.live > 0
-    ? ((data.deals.closed / data.calls.live) * 100).toFixed(2)
+  const completeToClosedRate = data.deals.closed > 0 && data.calls.completed > 0
+    ? ((data.deals.closed / data.calls.completed) * 100).toFixed(2)
     : 0;
     
-  const overallConversionRate = data.deals.closed > 0 && data.clicks > 0
-    ? ((data.deals.closed / data.clicks) * 100).toFixed(2)
+  const overallConversionRate = data.deals.closed > 0 && data.views > 0
+    ? ((data.deals.closed / data.views) * 100).toFixed(2)
     : 0;
   
   // Format currency
@@ -57,10 +61,11 @@ function FunnelAnalysis({ data }) {
       {
         name: "Value",
         data: [
-          data.clicks,
-          data.calls.booked,
-          data.calls.live,
-          data.deals.closed
+          data.views || 0,
+          data.clicks || 0,
+          data.calls.booked || 0,
+          data.calls.completed || 0,
+          data.deals.closed || 0
         ]
       }
     ]
@@ -88,6 +93,7 @@ function FunnelAnalysis({ data }) {
       },
     },
     colors: [
+      dark.main,
       primary.main,
       info.main,
       warning.main,
@@ -117,7 +123,7 @@ function FunnelAnalysis({ data }) {
       }
     },
     xaxis: {
-      categories: ['Clicks', 'Booked Calls', 'Live Calls', 'Deals Closed'],
+      categories: ['Views', 'Link Clicks', 'Calls Booked', 'Calls Completed', 'Deals Closed'],
       labels: {
         style: {
           colors: "#c8cfca",
@@ -146,12 +152,28 @@ function FunnelAnalysis({ data }) {
             Funnel Analysis
           </VuiTypography>
           <VuiTypography variant="button" color="text" fontWeight="regular">
-            Conversion flow from clicks to closed deals
+            Conversion flow from views to closed deals
           </VuiTypography>
         </VuiBox>
         
         <Grid container spacing={3} mb={3}>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={6} xl={3}>
+            <VuiBox 
+              bgcolor="rgba(0, 0, 0, 0.1)" 
+              borderRadius="lg" 
+              p={2} 
+              textAlign="center"
+              border="1px solid rgba(85, 85, 85, 0.3)"
+            >
+              <VuiTypography variant="button" color="text" fontWeight="regular">
+                View → Click
+              </VuiTypography>
+              <VuiTypography variant="h5" color="white" fontWeight="bold">
+                {viewToClickRate}%
+              </VuiTypography>
+            </VuiBox>
+          </Grid>
+          <Grid item xs={12} md={6} xl={3}>
             <VuiBox 
               bgcolor="rgba(0, 117, 255, 0.1)" 
               borderRadius="lg" 
@@ -167,7 +189,7 @@ function FunnelAnalysis({ data }) {
               </VuiTypography>
             </VuiBox>
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={6} xl={3}>
             <VuiBox 
               bgcolor="rgba(44, 217, 255, 0.1)" 
               borderRadius="lg" 
@@ -176,14 +198,14 @@ function FunnelAnalysis({ data }) {
               border="1px solid rgba(44, 217, 255, 0.3)"
             >
               <VuiTypography variant="button" color="text" fontWeight="regular">
-                Book → Live
+                Book → Complete
               </VuiTypography>
               <VuiTypography variant="h5" color="white" fontWeight="bold">
-                {bookToLiveRate}%
+                {bookToCompleteRate}%
               </VuiTypography>
             </VuiBox>
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={6} xl={3}>
             <VuiBox 
               bgcolor="rgba(255, 178, 0, 0.1)" 
               borderRadius="lg" 
@@ -192,30 +214,32 @@ function FunnelAnalysis({ data }) {
               border="1px solid rgba(255, 178, 0, 0.3)"
             >
               <VuiTypography variant="button" color="text" fontWeight="regular">
-                Live → Closed
+                Complete → Close
               </VuiTypography>
               <VuiTypography variant="h5" color="white" fontWeight="bold">
-                {liveToClosedRate}%
-              </VuiTypography>
-            </VuiBox>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <VuiBox 
-              bgcolor="rgba(22, 249, 170, 0.1)" 
-              borderRadius="lg" 
-              p={2} 
-              textAlign="center"
-              border="1px solid rgba(22, 249, 170, 0.3)"
-            >
-              <VuiTypography variant="button" color="text" fontWeight="regular">
-                Overall Conversion
-              </VuiTypography>
-              <VuiTypography variant="h5" color="success" fontWeight="bold">
-                {overallConversionRate}%
+                {completeToClosedRate}%
               </VuiTypography>
             </VuiBox>
           </Grid>
         </Grid>
+        
+        <VuiBox mt={2} mb={2} textAlign="center">
+          <VuiBox 
+            bgcolor="rgba(22, 249, 170, 0.1)" 
+            borderRadius="lg" 
+            p={2}
+            display="inline-block" 
+            minWidth="200px"
+            border="1px solid rgba(22, 249, 170, 0.3)"
+          >
+            <VuiTypography variant="button" color="text" fontWeight="regular">
+              Overall Conversion (View → Close)
+            </VuiTypography>
+            <VuiTypography variant="h5" color="success" fontWeight="bold">
+              {overallConversionRate}%
+            </VuiTypography>
+          </VuiBox>
+        </VuiBox>
         
         <VuiBox height="350px">
           <ReactApexChart
@@ -243,13 +267,12 @@ function FunnelAnalysis({ data }) {
 // PropTypes validation
 FunnelAnalysis.propTypes = {
   data: PropTypes.shape({
+    views: PropTypes.number,
     clicks: PropTypes.number.isRequired,
     calls: PropTypes.shape({
       booked: PropTypes.number.isRequired,
-      live: PropTypes.number.isRequired,
-      no_show: PropTypes.number.isRequired,
-      rescheduled: PropTypes.number.isRequired,
-      list: PropTypes.array.isRequired,
+      completed: PropTypes.number,
+      no_show: PropTypes.number,
     }).isRequired,
     deals: PropTypes.shape({
       closed: PropTypes.number.isRequired,

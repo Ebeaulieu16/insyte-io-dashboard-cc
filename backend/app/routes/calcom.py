@@ -14,6 +14,7 @@ import json
 
 from app.database import get_db
 from app.models.integration import Integration, IntegrationType, IntegrationStatus, IntegrationAuthType
+from app.models.call import CallStatus
 
 router = APIRouter(
     prefix="/api/calcom",
@@ -64,6 +65,27 @@ def get_calcom_integration(db: Session, user_id: int = 1):
         )
     
     return integration, api_key
+
+def map_calcom_status_to_internal(calcom_status: str) -> str:
+    """
+    Map Cal.com booking status to internal CallStatus.
+    
+    Args:
+        calcom_status: Status from Cal.com API
+        
+    Returns:
+        str: Corresponding internal CallStatus value
+    """
+    status_mapping = {
+        "ACCEPTED": CallStatus.CONFIRMED,
+        "PENDING": CallStatus.PENDING,
+        "CANCELLED": CallStatus.CANCELLED,
+        "REJECTED": CallStatus.CANCELLED,
+        # Default to BOOKED if status is unknown
+        "UNKNOWN": CallStatus.BOOKED
+    }
+    
+    return status_mapping.get(calcom_status, CallStatus.BOOKED)
 
 # API endpoints
 @router.get("/")
@@ -257,11 +279,16 @@ async def get_calcom_stats(
         bookings_data = await get_calcom_bookings(start_date, end_date, db, user_id)
         bookings = bookings_data.get("bookings", [])
         
-        # Calculate statistics
+        # Calculate statistics using our internal status values
         total_bookings = len(bookings)
-        confirmed_bookings = sum(1 for b in bookings if b.get("status") == "ACCEPTED")
-        pending_bookings = sum(1 for b in bookings if b.get("status") == "PENDING")
-        canceled_bookings = sum(1 for b in bookings if b.get("status") == "CANCELLED")
+        
+        # Count by status using our internal status names
+        status_counts = {status.value: 0 for status in CallStatus}
+        
+        for booking in bookings:
+            calcom_status = booking.get("status", "UNKNOWN")
+            internal_status = map_calcom_status_to_internal(calcom_status)
+            status_counts[internal_status] += 1
         
         # Get event types to map IDs to names
         event_types_data = await get_calcom_event_types(db, user_id)
@@ -278,12 +305,15 @@ async def get_calcom_stats(
             
             bookings_by_event_type[event_type_name] += 1
         
-        # Return statistics
+        # Return statistics with our internal status counts
         return {
             "total_bookings": total_bookings,
-            "confirmed_bookings": confirmed_bookings,
-            "pending_bookings": pending_bookings,
-            "canceled_bookings": canceled_bookings,
+            "status_counts": status_counts,
+            "confirmed_bookings": status_counts[CallStatus.CONFIRMED],
+            "pending_bookings": status_counts[CallStatus.PENDING],
+            "cancelled_bookings": status_counts[CallStatus.CANCELLED],
+            "completed_bookings": status_counts[CallStatus.COMPLETED],
+            "no_show_bookings": status_counts[CallStatus.NO_SHOW],
             "bookings_by_event_type": bookings_by_event_type,
             "date_range": {
                 "start_date": start_date,

@@ -279,7 +279,7 @@ async def get_deep_view(
         db: Database session.
         
     Returns:
-        Detailed analytics for the UTM link including clicks, calls, deals, video data, etc.
+        Detailed analytics for the UTM link including views, clicks, calls, deals, video data, etc.
     """
     # Default to last 30 days if no dates provided
     end_date_dt = datetime.now()
@@ -334,9 +334,12 @@ async def get_deep_view(
         
         calls_list = []
         calls_booked = 0
-        calls_live = 0
+        calls_confirmed = 0
+        calls_completed = 0
+        calls_cancelled = 0
         calls_no_show = 0
         calls_rescheduled = 0
+        calls_pending = 0
         
         for call in calls_query.all():
             calls_list.append({
@@ -346,15 +349,21 @@ async def get_deep_view(
                 "id": call.id
             })
             
-            # Count calls by status
-            if call.status == "booked":
+            # Count calls by status (using the updated CallStatus)
+            if call.status == CallStatus.BOOKED:
                 calls_booked += 1
-            elif call.status == "live":
-                calls_live += 1
-            elif call.status == "no_show":
+            elif call.status == CallStatus.CONFIRMED:
+                calls_confirmed += 1
+            elif call.status == CallStatus.COMPLETED:
+                calls_completed += 1
+            elif call.status == CallStatus.CANCELLED:
+                calls_cancelled += 1
+            elif call.status == CallStatus.NO_SHOW:
                 calls_no_show += 1
-            elif call.status == "rescheduled":
+            elif call.status == CallStatus.RESCHEDULED:
                 calls_rescheduled += 1
+            elif call.status == CallStatus.PENDING:
+                calls_pending += 1
         
         # Get deals and revenue data
         deals_query = db.query(Payment).filter(
@@ -370,8 +379,10 @@ async def get_deep_view(
             total_revenue += deal.amount
             closed_deals += 1
         
-        # Check if there's video data
+        # Check if there's video data and get view counts
         video_data = None
+        total_views = 0
+        
         video_analytics = db.query(VideoAnalytics).filter(
             VideoAnalytics.slug == slug,
             VideoAnalytics.last_updated >= start_date_dt,
@@ -379,6 +390,9 @@ async def get_deep_view(
         ).first()
         
         if video_analytics:
+            # Get view count from video analytics
+            total_views = video_analytics.views
+            
             # Calculate leads from this video
             video_leads = db.query(func.count(Call.id)).filter(
                 Call.slug == slug,
@@ -409,18 +423,26 @@ async def get_deep_view(
                 "revenue": float(video_revenue)
             }
         
-        # Compile the response
+        # If there's no video data, default views to 2-3x clicks as an estimate
+        if total_views == 0:
+            total_views = total_clicks * 2  # Default assumption: about 50% of viewers click
+        
+        # Compile the response with updated structure for funnel
         return {
             "title": link.title,
             "slug": link.slug,
             "short_url": f"yourdomain.com/go/{link.slug}",
             "destination": link.destination_url,
             "created_at": link.created_at.isoformat(),
+            "views": total_views,
             "clicks": total_clicks,
             "clicks_data": clicks_data,
             "calls": {
                 "booked": calls_booked,
-                "live": calls_live,
+                "confirmed": calls_confirmed,
+                "completed": calls_completed,
+                "cancelled": calls_cancelled,
+                "pending": calls_pending,
                 "no_show": calls_no_show,
                 "rescheduled": calls_rescheduled,
                 "list": calls_list

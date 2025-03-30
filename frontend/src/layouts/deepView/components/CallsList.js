@@ -64,10 +64,14 @@ function CallsList({ calls }) {
     switch (status.toLowerCase()) {
       case "booked":
         return "info";
-      case "live":
+      case "pending":
+        return "secondary";
+      case "confirmed":
         return "warning";
       case "completed":
         return "success";
+      case "cancelled":
+        return "error";
       case "no_show":
         return "error";
       case "rescheduled":
@@ -80,6 +84,11 @@ function CallsList({ calls }) {
   // Format status text with proper capitalization
   const formatStatus = (status) => {
     if (status === "no_show") return "No Show";
+    if (status === "completed") return "Completed";
+    if (status === "cancelled") return "Cancelled";
+    if (status === "confirmed") return "Confirmed";
+    if (status === "pending") return "Pending";
+    if (status === "rescheduled") return "Rescheduled";
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
   
@@ -110,8 +119,10 @@ function CallsList({ calls }) {
   const filterOptions = [
     { value: "all", label: "All Calls" },
     { value: "booked", label: "Booked" },
-    { value: "live", label: "Live" },
+    { value: "pending", label: "Pending" },
+    { value: "confirmed", label: "Confirmed" },
     { value: "completed", label: "Completed" },
+    { value: "cancelled", label: "Cancelled" },
     { value: "no_show", label: "No Show" },
     { value: "rescheduled", label: "Rescheduled" },
   ];
