@@ -50,7 +50,7 @@ OAUTH_CONFIG = {
         "token_url": "https://connect.stripe.com/oauth/token",
         "client_id": os.getenv("STRIPE_CLIENT_ID", ""),
         "client_secret": os.getenv("STRIPE_SECRET_KEY", ""),
-        "scopes": ["read_only"],
+        "scopes": ["read_write"],
         "redirect_uri": f"{APP_URL}/auth/stripe/callback",
     },
     "calendly": {
@@ -62,8 +62,8 @@ OAUTH_CONFIG = {
         "redirect_uri": f"{APP_URL}/auth/calendly/callback",
     },
     "calcom": {
-        "auth_url": "https://api.cal.com/oauth/authorize",
-        "token_url": "https://api.cal.com/oauth/token",
+        "auth_url": "https://cal.com/oauth/authorize",
+        "token_url": "https://cal.com/oauth/token",
         "client_id": os.getenv("CALCOM_CLIENT_ID", ""),
         "client_secret": os.getenv("CALCOM_CLIENT_SECRET", ""),
         "scopes": ["read_bookings", "read_profile"],
@@ -125,6 +125,23 @@ async def initiate_auth(
     # Generate state token to prevent CSRF
     state = f"{user_id}:{secrets.token_urlsafe(32)}"
     
+    # Extra logging for Calendly to debug client_id issue
+    if platform == "calendly":
+        client_id = config["client_id"]
+        logger.info(f"Calendly client_id: '{client_id}', length: {len(client_id)}")
+        logger.info(f"CALENDLY_CLIENT_ID from env: '{os.getenv('CALENDLY_CLIENT_ID', 'not set')}'")
+        if not client_id:
+            logger.error("Calendly client_id is empty - please check CALENDLY_CLIENT_ID environment variable")
+    
+    # Extra logging for Cal.com to debug API issues
+    if platform == "calcom":
+        client_id = config["client_id"]
+        logger.info(f"Cal.com client_id: '{client_id}', length: {len(client_id)}")
+        logger.info(f"CALCOM_CLIENT_ID from env: '{os.getenv('CALCOM_CLIENT_ID', 'not set')}'")
+        logger.info(f"Cal.com auth URL: {config['auth_url']}")
+        if not client_id:
+            logger.error("Cal.com client_id is empty - please check CALCOM_CLIENT_ID environment variable")
+    
     # Build authorization URL
     params = {
         "client_id": config["client_id"],
@@ -144,7 +161,15 @@ async def initiate_auth(
             "stripe_user[country]": request.query_params.get("country", "US"),
         })
     
+    # Log OAuth information for debugging
+    logger.info(f"Initiating OAuth flow for platform: {platform}")
+    logger.info(f"Using client_id: {params['client_id'][:5]}...{params['client_id'][-5:] if len(params['client_id']) > 10 else ''}")
+    logger.info(f"Using redirect_uri: {params['redirect_uri']}")
+    logger.info(f"Using scopes: {params['scope']}")
+    
+    # Log the complete auth URL for debugging
     auth_url = f"{config['auth_url']}?{urlencode(params)}"
+    logger.info(f"Complete auth URL: {auth_url}")
     
     # Redirect to authorization URL
     return RedirectResponse(url=auth_url)
@@ -152,7 +177,7 @@ async def initiate_auth(
 @router.get("/auth/{platform}/callback")
 async def oauth_callback(
     platform: str,
-    code: str,
+    code: Optional[str] = None,
     state: Optional[str] = None,
     error: Optional[str] = None,
     request: Request = None,
@@ -171,10 +196,18 @@ async def oauth_callback(
     Returns:
         RedirectResponse: Redirects back to the frontend
     """
-    # Check for error
+    # Log callback parameters
+    logger.info(f"OAuth callback for platform: {platform}")
     if error:
+        logger.error(f"OAuth error from provider: {error}")
         return RedirectResponse(
             url=f"{FRONTEND_URL}/integrations?error={error}&platform={platform}"
+        )
+    
+    if not code:
+        logger.error(f"No authorization code provided in callback for {platform}")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/integrations?error=no_code&platform={platform}"
         )
     
     # Extract user ID from state
@@ -189,6 +222,7 @@ async def oauth_callback(
     try:
         # Get configuration
         config = get_oauth_config(platform)
+        logger.info(f"Using redirect_uri for token exchange: {config['redirect_uri']}")
         
         # Exchange code for tokens
         async with httpx.AsyncClient() as client:
@@ -201,6 +235,7 @@ async def oauth_callback(
             }
             
             # Make token request
+            logger.info(f"Making token request to: {config['token_url']}")
             response = await client.post(
                 config["token_url"],
                 data=token_data,
@@ -209,12 +244,14 @@ async def oauth_callback(
             
             # Check response
             if response.status_code != 200:
+                logger.error(f"Token exchange failed with status {response.status_code}: {response.text}")
                 return RedirectResponse(
                     url=f"{FRONTEND_URL}/integrations?error=token_error&platform={platform}"
                 )
             
             # Parse token response
             token_info = response.json()
+            logger.info(f"Token exchange successful for {platform}")
             
             # Get access token
             access_token = token_info.get("access_token")
