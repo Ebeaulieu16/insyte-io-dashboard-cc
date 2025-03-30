@@ -214,8 +214,15 @@ async def oauth_callback(
     Returns:
         RedirectResponse: Redirects back to the frontend
     """
+    # Enhanced logging for debugging
+    logger.info(f"OAuth callback received for platform: {platform}")
+    logger.info(f"Request path: {request.url.path}")
+    logger.info(f"Full request URL: {request.url}")
+    logger.info(f"Code present: {bool(code)}")
+    logger.info(f"State present: {bool(state)}")
+    logger.info(f"Error present: {bool(error)}")
+    
     # Log callback parameters
-    logger.info(f"OAuth callback for platform: {platform}")
     if error:
         logger.error(f"OAuth error from provider: {error}")
         return RedirectResponse(
