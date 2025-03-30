@@ -19,7 +19,7 @@
 import { useEffect } from "react";
 
 // react-router-dom components
-import { useLocation, NavLink } from "react-router-dom";
+import { useLocation, NavLink, useHistory } from "react-router-dom";
 
 // prop-types is a library for typechecking of props.
 import PropTypes from "prop-types";
@@ -44,9 +44,11 @@ import sidenavLogoLabel from "examples/Sidenav/styles/sidenav";
 
 // Vision UI Dashboard React context
 import { useVisionUIController, setMiniSidenav, setTransparentSidenav } from "context";
+import { useAuth } from "context/auth";
 
 // Vision UI Dashboard React icons
 import InsyteLogo from "examples/Icons/InsyteLogo";
+import { IoLogOut } from "react-icons/io5";
 
 // function Sidenav({ color, brand, brandName, routes, ...rest }) {
 function Sidenav({ color, brandName, routes, ...rest }) {
@@ -55,6 +57,8 @@ function Sidenav({ color, brandName, routes, ...rest }) {
   const location = useLocation();
   const { pathname } = location;
   const collapseName = pathname.split("/").slice(1)[0];
+  const history = useHistory();
+  const { isAuthenticated, logout } = useAuth();
 
   const closeSidenav = () => setMiniSidenav(dispatch, true);
 
@@ -81,6 +85,11 @@ function Sidenav({ color, brandName, routes, ...rest }) {
       setTransparentSidenav(dispatch, false);
     }
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    history.push("/authentication/login");
+  };
 
   // Render all the routes from the routes.js (All the visible items on the Sidenav)
   const renderRoutes = routes.map(({ type, name, icon, title, noCollapse, key, route, href, display }) => {
@@ -233,7 +242,24 @@ function Sidenav({ color, brandName, routes, ...rest }) {
           },
         })}
       >
-        {/* SidenavCard and Upgrade to Pro button removed */}
+        {isAuthenticated && (
+          <VuiButton
+            component="button"
+            onClick={handleLogout}
+            variant="gradient"
+            color="info"
+            fullWidth
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+            }}
+          >
+            <IoLogOut size="15px" color="inherit" />
+            {!miniSidenav && "Logout"}
+          </VuiButton>
+        )}
       </VuiBox>
     </SidenavRoot>
   );

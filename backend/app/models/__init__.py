@@ -9,6 +9,7 @@ from app.models.call import Call, CallStatus
 from app.models.payment import Payment
 from app.models.video_analytics import VideoAnalytics
 from app.models.integration import Integration, IntegrationType
+from app.models.user import User
 
 # Import all models here for easy access in other parts of the application
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "Payment",
     "VideoAnalytics",
     "Integration",
-    "IntegrationType"
+    "IntegrationType",
+    "User"
 ]

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 logger.info(f"Starting application with log level: {log_level}")
 
 # Import routes
-from app.routes import dashboard, youtube, sales, auth, utm, calcom
+from app.routes import dashboard, youtube, sales, auth, utm, calcom, user_auth
 
 # Import database initialization
 from app.database import engine, Base
@@ -80,6 +80,7 @@ app.include_router(sales.router)
 app.include_router(auth.router)
 app.include_router(utm.router)
 app.include_router(calcom.router)
+app.include_router(user_auth.router)
 
 # Include payments router if available
 if payments_router_available:

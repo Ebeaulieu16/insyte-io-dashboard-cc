@@ -47,9 +47,17 @@ import routes from "routes";
 
 // Vision UI Dashboard React contexts
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
+import { AuthProvider } from "context/auth";
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
+// Protected Route component
+import ProtectedRoute from "components/ProtectedRoute";
+
+// Authentication pages
+import Login from "layouts/authentication/login";
+import Register from "layouts/authentication/register";
 
 export default function App() {
   const [controller, dispatch] = useVisionUIController();
@@ -98,10 +106,27 @@ export default function App() {
     document.scrollingElement.scrollTop = 0;
   }, [pathname]);
 
-  const getRoutes = (allRoutes) =>
+  // Filter routes to separate authentication routes from the rest
+  const authRoutes = routes.filter(route => route.route?.startsWith("/authentication"));
+  const appRoutes = routes.filter(route => !route.route?.startsWith("/authentication"));
+
+  const getProtectedRoutes = (allRoutes) =>
     allRoutes.map((route) => {
       if (route.collapse) {
-        return getRoutes(route.collapse);
+        return getProtectedRoutes(route.collapse);
+      }
+
+      if (route.route) {
+        return <ProtectedRoute exact path={route.route} component={route.component} key={route.key} />;
+      }
+
+      return null;
+    });
+
+  const getAuthRoutes = (allRoutes) =>
+    allRoutes.map((route) => {
+      if (route.collapse) {
+        return getAuthRoutes(route.collapse);
       }
 
       if (route.route) {
@@ -135,81 +160,101 @@ export default function App() {
     </VuiBox>
   );
 
-  return direction === "rtl" ? (
-    <CacheProvider value={rtlCache}>
-      <ThemeProvider theme={themeRTL}>
-        <CssBaseline />
-        {layout === "dashboard" && (
-          <>
-            <Sidenav
-              color={sidenavColor}
-              brand=""
-              brandName="Insyte Dashboard"
-              routes={routes}
-              onMouseEnter={handleOnMouseEnter}
-              onMouseLeave={handleOnMouseLeave}
+  return (
+    <AuthProvider>
+      {direction === "rtl" ? (
+        <CacheProvider value={rtlCache}>
+          <ThemeProvider theme={themeRTL}>
+            <CssBaseline />
+            {layout === "dashboard" && (
+              <>
+                <Sidenav
+                  color={sidenavColor}
+                  brand=""
+                  brandName="Insyte Dashboard"
+                  routes={routes}
+                  onMouseEnter={handleOnMouseEnter}
+                  onMouseLeave={handleOnMouseLeave}
+                />
+                <Configurator />
+                {configsButton}
+              </>
+            )}
+            {layout === "vr" && <Configurator />}
+            <Switch>
+              {/* Auth routes */}
+              <Route exact path="/authentication/login" component={Login} />
+              <Route exact path="/authentication/register" component={Register} />
+              
+              {/* Protected routes */}
+              {getProtectedRoutes(appRoutes)}
+              
+              {/* Default redirect */}
+              <Route path="/authentication" render={() => <Redirect to="/authentication/login" />} />
+              <Route path="*" render={() => <Redirect to="/dashboard" />} />
+            </Switch>
+            
+            {/* Toast notifications container */}
+            <ToastContainer
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="dark"
             />
-            <Configurator />
-            {configsButton}
-          </>
-        )}
-        {layout === "vr" && <Configurator />}
-        <Switch>
-          {getRoutes(routes)}
-          <Route path="*" render={() => <Redirect to="/dashboard" />} />
-        </Switch>
-        
-        {/* Toast notifications container */}
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
-        />
-      </ThemeProvider>
-    </CacheProvider>
-  ) : (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      {layout === "dashboard" && (
-        <>
-          <Sidenav
-            color={sidenavColor}
-            brand=""
-            brandName="Insyte Dashboard"
-            routes={routes}
-            onMouseEnter={handleOnMouseEnter}
-            onMouseLeave={handleOnMouseLeave}
+          </ThemeProvider>
+        </CacheProvider>
+      ) : (
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          {layout === "dashboard" && (
+            <>
+              <Sidenav
+                color={sidenavColor}
+                brand=""
+                brandName="Insyte Dashboard"
+                routes={routes}
+                onMouseEnter={handleOnMouseEnter}
+                onMouseLeave={handleOnMouseLeave}
+              />
+              <Configurator />
+              {configsButton}
+            </>
+          )}
+          {layout === "vr" && <Configurator />}
+          <Switch>
+            {/* Auth routes */}
+            <Route exact path="/authentication/login" component={Login} />
+            <Route exact path="/authentication/register" component={Register} />
+            
+            {/* Protected routes */}
+            {getProtectedRoutes(appRoutes)}
+            
+            {/* Default redirect */}
+            <Route path="/authentication" render={() => <Redirect to="/authentication/login" />} />
+            <Route path="*" render={() => <Redirect to="/dashboard" />} />
+          </Switch>
+          
+          {/* Toast notifications container */}
+          <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="dark"
           />
-          <Configurator />
-          {configsButton}
-        </>
+        </ThemeProvider>
       )}
-      {layout === "vr" && <Configurator />}
-      <Switch>
-        {getRoutes(routes)}
-        <Route path="*" render={() => <Redirect to="/dashboard" />} />
-      </Switch>
-      
-      {/* Toast notifications container */}
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="dark"
-      />
-    </ThemeProvider>
+    </AuthProvider>
   );
 }

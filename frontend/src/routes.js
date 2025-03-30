@@ -46,11 +46,14 @@ import UTMGenerator from "layouts/utm";
 import Integrations from "layouts/integrations";
 import Recommendations from "layouts/recommendations";
 import DeepView from "layouts/deepView";
+import Login from "layouts/authentication/login";
+import Register from "layouts/authentication/register";
 
 // Vision UI Dashboard React icons
 import { IoStatsChart } from "react-icons/io5";
 import { FaChartLine, FaYoutube, FaLink, FaPlug, FaLightbulb } from "react-icons/fa";
 import { IoHome } from "react-icons/io5";
+import { IoLogIn, IoPersonAdd } from "react-icons/io5";
 
 const routes = [
   {
@@ -116,6 +119,27 @@ const routes = [
     component: DeepView,
     noCollapse: true,
     display: "none", // Custom property to hide from Sidenav
+  },
+  // Authentication routes
+  {
+    type: "collapse",
+    name: "Sign In",
+    key: "login",
+    route: "/authentication/login",
+    icon: <IoLogIn size="15px" color="inherit" />,
+    component: Login,
+    noCollapse: true,
+    display: "none", // Hide from Sidenav
+  },
+  {
+    type: "collapse",
+    name: "Sign Up",
+    key: "register",
+    route: "/authentication/register",
+    icon: <IoPersonAdd size="15px" color="inherit" />,
+    component: Register,
+    noCollapse: true,
+    display: "none", // Hide from Sidenav
   },
 ];
 
