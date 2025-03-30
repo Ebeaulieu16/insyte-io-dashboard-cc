@@ -5,6 +5,7 @@ Integration model for storing OAuth tokens.
 from sqlalchemy import Column, String, DateTime, Boolean, Text, Index, Integer, JSON
 from sqlalchemy.sql import func
 import enum
+import json
 
 from app.models.base import BaseModel
 
@@ -21,6 +22,12 @@ class IntegrationStatus(str, enum.Enum):
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
     ERROR = "error"
+    ACTIVE = "active"
+
+class IntegrationAuthType(str, enum.Enum):
+    """Enumeration of authentication types."""
+    OAUTH = "oauth"
+    API_KEY = "api_key"
 
 class Integration(BaseModel):
     """
@@ -36,14 +43,17 @@ class Integration(BaseModel):
     platform = Column(String(50), nullable=False)
     status = Column(String(50), default=IntegrationStatus.PENDING, nullable=False)
     
+    # Authentication type (OAuth or API Key)
+    auth_type = Column(String(20), default=IntegrationAuthType.OAUTH, nullable=False)
+    
     # Account details
-    account_id = Column(String(255), nullable=False, index=True)
+    account_id = Column(String(255), nullable=True, index=True)
     account_name = Column(String(255), nullable=True)
     
     # OAuth tokens
-    access_token = Column(String(512), nullable=False)
+    access_token = Column(String(512), nullable=True)
     refresh_token = Column(String(512), nullable=True)
-    token_type = Column(String(50), default="bearer", nullable=False)
+    token_type = Column(String(50), default="bearer", nullable=True)
     scope = Column(String(255), nullable=True)
     
     # Token expiration
@@ -62,4 +72,25 @@ class Integration(BaseModel):
     )
     
     def __repr__(self):
-        return f"<Integration(id={self.id}, user_id={self.user_id}, platform='{self.platform}', account='{self.account_id}')>" 
+        return f"<Integration(id={self.id}, user_id={self.user_id}, platform='{self.platform}', account='{self.account_id}')>"
+    
+    # Property to get the API key if stored in extra_data
+    @property
+    def api_key(self):
+        """Get the API key from extra_data if auth_type is API_KEY."""
+        if self.auth_type == IntegrationAuthType.API_KEY and self.extra_data:
+            try:
+                if isinstance(self.extra_data, str):
+                    data = json.loads(self.extra_data)
+                else:
+                    data = self.extra_data
+                return data.get("api_key")
+            except (ValueError, AttributeError):
+                return None
+        return None
+    
+    # Property to check if the integration is connected
+    @property
+    def is_connected(self):
+        """Check if the integration is connected."""
+        return self.status in [IntegrationStatus.CONNECTED, IntegrationStatus.ACTIVE] 

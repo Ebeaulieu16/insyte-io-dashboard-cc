@@ -17,7 +17,7 @@ import jwt
 import logging
 
 from app.database import get_db
-from app.models.integration import Integration, IntegrationType, IntegrationStatus
+from app.models.integration import Integration, IntegrationType, IntegrationStatus, IntegrationAuthType
 from app.schemas.integration import IntegrationStatusList, IntegrationUpdate, IntegrationCreate
 
 # Get logger
@@ -562,3 +562,104 @@ async def sync_platform_data(platform: str, db: Session):
     
     except Exception as e:
         print(f"Error syncing data for {platform}: {str(e)}")
+
+@router.post("/api/integrations/calcom/api-key")
+def connect_calcom_api_key(
+    api_key: dict, 
+    db: Session = Depends(get_db),
+    user_id: int = 1  # Default to user 1 for now
+):
+    """
+    Connect Cal.com using API key.
+    
+    Args:
+        api_key: JSON object containing the API key
+        db: Database session
+        user_id: User ID (defaults to 1 for testing/demo)
+        
+    Returns:
+        JSON response with connection status
+    """
+    logger.info(f"Connecting Cal.com via API key for user {user_id}")
+    
+    if "api_key" not in api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="API key is required"
+        )
+    
+    calcom_api_key = api_key["api_key"].strip()
+    
+    # Validate the API key by making a request to Cal.com API
+    try:
+        with httpx.Client() as client:
+            response = client.get(
+                "https://api.cal.com/v2/me",
+                headers={
+                    "Authorization": f"Bearer {calcom_api_key}",
+                    "Content-Type": "application/json"
+                },
+                timeout=10.0
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Cal.com API key validation failed: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid Cal.com API key: {response.text}"
+                )
+            
+            user_data = response.json()
+            account_name = user_data.get("name", "Cal.com User")
+            
+            logger.info(f"Cal.com API key validated successfully for {account_name}")
+            
+            # Check if this integration already exists for the user
+            existing_integration = db.query(Integration).filter(
+                Integration.user_id == user_id,
+                Integration.platform == "calcom"
+            ).first()
+            
+            now = datetime.utcnow()
+            
+            if existing_integration:
+                # Update existing integration
+                existing_integration.auth_type = IntegrationAuthType.API_KEY
+                existing_integration.access_token = None
+                existing_integration.account_name = account_name
+                existing_integration.extra_data = {"api_key": calcom_api_key, "user_data": user_data}
+                existing_integration.last_sync = now
+                existing_integration.status = IntegrationStatus.CONNECTED
+                logger.info(f"Updated existing Cal.com integration for user {user_id}")
+            else:
+                # Create new integration
+                new_integration = Integration(
+                    user_id=user_id,
+                    platform="calcom",
+                    auth_type=IntegrationAuthType.API_KEY,
+                    account_name=account_name,
+                    account_id=str(user_data.get("id", "")),
+                    extra_data={"api_key": calcom_api_key, "user_data": user_data},
+                    last_sync=now,
+                    status=IntegrationStatus.CONNECTED
+                )
+                db.add(new_integration)
+                logger.info(f"Created new Cal.com integration for user {user_id}")
+            
+            db.commit()
+            
+            return {"status": "success", "account_name": account_name}
+            
+    except httpx.RequestError as e:
+        logger.error(f"Error connecting to Cal.com API: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error connecting to Cal.com API: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error connecting Cal.com: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error connecting Cal.com: {str(e)}"
+        )
