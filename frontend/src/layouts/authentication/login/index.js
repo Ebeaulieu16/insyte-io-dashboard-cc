@@ -8,15 +8,11 @@ import CoverLayout from "layouts/authentication/components/CoverLayout";
 import GradientBorder from "examples/GradientBorder";
 import LoginForm from "layouts/authentication/components/LoginForm";
 
-// Images
-import bgSignIn from "assets/images/signInImage.png";
-
 function Login() {
   return (
     <CoverLayout
       title="Welcome back"
       description="Enter your email and password to sign in"
-      image={bgSignIn}
       button={{ color: "info", variant: "gradient" }}
     >
       <LoginForm />

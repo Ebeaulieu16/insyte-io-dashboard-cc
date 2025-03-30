@@ -26,10 +26,8 @@ function CoverLayout({ color, header, title, description, image, button, childre
         justifyContent="center"
         alignItems="center"
         sx={{
-          backgroundImage: `url(${image})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
+          backgroundColor: "#0f1535",
+          backgroundImage: "linear-gradient(310deg, #141727 0%, #3a416f 100%)",
         }}
       >
         <Grid 
@@ -93,7 +91,7 @@ CoverLayout.propTypes = {
   header: PropTypes.node,
   title: PropTypes.string,
   description: PropTypes.string,
-  image: PropTypes.string.isRequired,
+  image: PropTypes.string,
   button: PropTypes.object,
   children: PropTypes.node.isRequired,
 };
