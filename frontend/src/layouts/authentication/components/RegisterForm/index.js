@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useHistory } from "react-router-dom";
 import { Card, Checkbox, FormControlLabel } from "@mui/material";
 import VuiBox from "components/VuiBox";
@@ -7,6 +7,7 @@ import VuiInput from "components/VuiInput";
 import VuiButton from "components/VuiButton";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useAuth } from "context/auth";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
@@ -17,11 +18,22 @@ function RegisterForm() {
   const [agreement, setAgreement] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const history = useHistory();
+  const { register, isAuthenticated } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    console.log("Register component useEffect, isAuthenticated:", isAuthenticated);
+    if (isAuthenticated) {
+      console.log("User is authenticated, redirecting to dashboard");
+      history.push("/dashboard");
+    }
+  }, [isAuthenticated, history]);
 
   const handleSetAgreement = () => setAgreement(!agreement);
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    console.log("Register attempt with email:", email);
     
     // Validate form
     if (!agreement) {
@@ -37,24 +49,14 @@ function RegisterForm() {
     setIsLoading(true);
 
     try {
-      // Call the register API
-      const response = await axios.post(`${API_URL}/auth/register`, {
-        email,
-        password,
-      });
+      // Call the register function from auth context
+      const success = await register(email, password);
+      console.log("Registration success:", success);
 
-      // Get the token and user data
-      const { access_token, user } = response.data;
-
-      // Store the token and user data in localStorage
-      localStorage.setItem("token", access_token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      // Show success message
-      toast.success("Registration successful! Welcome to Insyte Dashboard.");
-
-      // Redirect to dashboard
-      history.push("/dashboard");
+      if (success) {
+        console.log("Redirecting to dashboard after registration");
+        history.push("/dashboard");
+      }
     } catch (error) {
       console.error("Registration error:", error);
       toast.error(

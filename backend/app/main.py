@@ -60,9 +60,9 @@ app.add_middleware(
 # Configure CORS
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 # Allow both the configured URL and localhost for development
-allowed_origins = [frontend_url, "http://localhost:3000"]
+allowed_origins = [frontend_url, "http://localhost:3000", "*"]  # Add wildcard for development
 if "," in frontend_url:  # Handle comma-separated list of URLs
-    allowed_origins = frontend_url.split(",") + ["http://localhost:3000"]
+    allowed_origins = frontend_url.split(",") + ["http://localhost:3000", "*"]
 
 logger.info(f"Configuring CORS with allowed origins: {allowed_origins}")
 app.add_middleware(
@@ -71,6 +71,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Type", "Authorization"],  # Expose these headers to the frontend
 )
 
 # Include all routers

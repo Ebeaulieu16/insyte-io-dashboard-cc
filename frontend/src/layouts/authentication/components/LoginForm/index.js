@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useHistory } from "react-router-dom";
 import { Card, Switch, Grid, Checkbox, FormControlLabel } from "@mui/material";
 import VuiBox from "components/VuiBox";
@@ -7,6 +7,7 @@ import VuiInput from "components/VuiInput";
 import VuiButton from "components/VuiButton";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useAuth } from "context/auth";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
@@ -16,32 +17,33 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const history = useHistory();
+  const { login, isAuthenticated } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    console.log("Login component useEffect, isAuthenticated:", isAuthenticated);
+    if (isAuthenticated) {
+      console.log("User is authenticated, redirecting to dashboard");
+      history.push("/dashboard");
+    }
+  }, [isAuthenticated, history]);
 
   const handleSetRememberMe = () => setRememberMe(!rememberMe);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    console.log("Login attempt with email:", email);
 
     try {
-      // Call the login API
-      const response = await axios.post(`${API_URL}/auth/token`, {
-        email,
-        password,
-      });
+      // Call the login function from auth context
+      const success = await login(email, password);
+      console.log("Login success:", success);
 
-      // Get the token and user data
-      const { access_token, user } = response.data;
-
-      // Store the token and user data in localStorage
-      localStorage.setItem("token", access_token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      // Show success message
-      toast.success("Login successful!");
-
-      // Redirect to dashboard
-      history.push("/dashboard");
+      if (success) {
+        console.log("Redirecting to dashboard after login");
+        history.push("/dashboard");
+      }
     } catch (error) {
       console.error("Login error:", error);
       toast.error(
