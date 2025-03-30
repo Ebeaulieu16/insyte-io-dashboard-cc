@@ -62,8 +62,8 @@ OAUTH_CONFIG = {
         "redirect_uri": f"{APP_URL}/auth/calendly/callback",
     },
     "calcom": {
-        "auth_url": "https://cal.com/oauth/authorize",
-        "token_url": "https://cal.com/oauth/token",
+        "auth_url": "https://app.cal.com/auth/oauth",
+        "token_url": "https://app.cal.com/api/auth/oauth/token",
         "client_id": os.getenv("CALCOM_CLIENT_ID", ""),
         "client_secret": os.getenv("CALCOM_CLIENT_SECRET", ""),
         "scopes": ["read_bookings", "read_profile"],
@@ -128,10 +128,17 @@ async def initiate_auth(
     # Extra logging for Calendly to debug client_id issue
     if platform == "calendly":
         client_id = config["client_id"]
+        client_secret = config["client_secret"]
         logger.info(f"Calendly client_id: '{client_id}', length: {len(client_id)}")
         logger.info(f"CALENDLY_CLIENT_ID from env: '{os.getenv('CALENDLY_CLIENT_ID', 'not set')}'")
+        logger.info(f"Calendly client_secret length: {len(client_secret) if client_secret else 0}")
+        logger.info(f"Calendly auth URL: {config['auth_url']}")
         if not client_id:
             logger.error("Calendly client_id is empty - please check CALENDLY_CLIENT_ID environment variable")
+        # Print all environment variables for debugging (without exposing secrets)
+        env_vars = {k: (v[:5] + '...' + v[-5:] if len(v) > 10 else v) 
+                    for k, v in os.environ.items() if k.startswith('CALENDLY')}
+        logger.info(f"All Calendly environment variables: {env_vars}")
     
     # Extra logging for Cal.com to debug API issues
     if platform == "calcom":
@@ -160,6 +167,17 @@ async def initiate_auth(
             "stripe_user[url]": request.query_params.get("website", ""),
             "stripe_user[country]": request.query_params.get("country", "US"),
         })
+    
+    # For Cal.com, modify parameters according to their OAuth requirements
+    if platform == "calcom":
+        # Cal.com may use different parameter names
+        params = {
+            "client_id": config["client_id"],
+            "redirect_uri": config["redirect_uri"],
+            "response_type": "code",
+            "scope": " ".join(config["scopes"]),
+            "state": state,
+        }
     
     # Log OAuth information for debugging
     logger.info(f"Initiating OAuth flow for platform: {platform}")
@@ -234,13 +252,25 @@ async def oauth_callback(
                 "redirect_uri": config["redirect_uri"]
             }
             
-            # Make token request
-            logger.info(f"Making token request to: {config['token_url']}")
-            response = await client.post(
-                config["token_url"],
-                data=token_data,
-                headers={"Accept": "application/json"}
-            )
+            # Handle Cal.com specifically for token exchange
+            headers = {"Accept": "application/json"}
+            if platform == "calcom":
+                # Cal.com might require additional headers or different format
+                headers["Content-Type"] = "application/json"
+                logger.info("Using JSON format for Cal.com token exchange")
+                response = await client.post(
+                    config["token_url"],
+                    json=token_data,
+                    headers=headers
+                )
+            else:
+                # Make token request for other platforms
+                logger.info(f"Making token request to: {config['token_url']}")
+                response = await client.post(
+                    config["token_url"],
+                    data=token_data,
+                    headers=headers
+                )
             
             # Check response
             if response.status_code != 200:
