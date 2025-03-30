@@ -37,16 +37,16 @@ function CoverLayout({ color, header, title, description, image, button, childre
           alignItems="center" 
           sx={{ height: "100%" }}
         >
-          <Grid item xs={11} sm={8} md={6} lg={4} xl={3}>
+          <Grid item xs={11} sm={9} md={7} lg={5} xl={4}>
             <Card>
               <VuiBox
                 display="flex"
                 flexDirection="column"
                 justifyContent="center"
                 alignItems="center"
-                pt={3}
-                pb={3}
-                px={3}
+                pt={4}
+                pb={4}
+                px={4}
               >
                 {header}
                 <VuiBox mt={2} mb={2} textAlign="center">

@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
 
 // Import the actual Insyte logo
-import logo from "assets/images/Logo Insyte.png";
+import logo from "assets/images/Logo-Insyte.png";
 
 function InsyteLogo({ size, marginRight }) {
   return (
