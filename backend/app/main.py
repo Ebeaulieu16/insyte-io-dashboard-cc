@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 import traceback
 from fastapi.responses import JSONResponse
 from fastapi import Request, status
+from starlette.middleware.sessions import SessionMiddleware
+import secrets
 
 # Load environment variables
 load_dotenv()
@@ -44,6 +46,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Generate a secret key for sessions or use the JWT_SECRET
+secret_key = os.getenv("JWT_SECRET", secrets.token_urlsafe(32))
+logger.info("Adding SessionMiddleware to application")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=secret_key,
+    max_age=3600,  # 1 hour session timeout
+    same_site="lax",  # Allows cookies during redirects for OAuth flows
+    https_only=os.getenv("ENV", "development").lower() == "production"  # Secure in production
+)
+
 # Configure CORS
 frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 # Allow both the configured URL and localhost for development
@@ -51,6 +64,7 @@ allowed_origins = [frontend_url, "http://localhost:3000"]
 if "," in frontend_url:  # Handle comma-separated list of URLs
     allowed_origins = frontend_url.split(",") + ["http://localhost:3000"]
 
+logger.info(f"Configuring CORS with allowed origins: {allowed_origins}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,  # Use list of allowed origins
