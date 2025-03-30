@@ -17,6 +17,7 @@ import Divider from "@mui/material/Divider";
 import Tooltip from "@mui/material/Tooltip";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import TextField from "@mui/material/TextField";
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
@@ -52,6 +53,7 @@ function Integrations() {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ show: false, message: "", severity: "info" });
   const [isDemo, setIsDemo] = useState(false);
+  const [calcomApiKey, setCalcomApiKey] = useState("");
 
   // Display URL parameters as alerts (for OAuth redirects)
   useEffect(() => {
@@ -278,7 +280,13 @@ function Integrations() {
 
   // Handle connect/disconnect actions
   const handleConnect = (platform) => {
-    // Redirect to the backend OAuth initiation endpoint
+    // Cal.com now handles its connection through the API key form
+    if (platform === "calcom") {
+      // Do nothing - the form on the Cal.com card handles this
+      return;
+    }
+    
+    // Redirect to the backend OAuth initiation endpoint for other platforms
     window.location.href = `${process.env.REACT_APP_API_URL}/auth/${platform}`;
   };
 
@@ -313,6 +321,57 @@ function Integrations() {
   // Handle alert close
   const handleCloseAlert = () => {
     setAlert(prev => ({ ...prev, show: false }));
+  };
+
+  const handleCalcomApiKeySubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      if (!calcomApiKey || calcomApiKey.trim() === "") {
+        setAlert({
+          show: true,
+          message: "Please enter a valid Cal.com API key",
+          severity: "warning"
+        });
+        return;
+      }
+      
+      // Submit API key to backend
+      const response = await api.post("/api/integrations/calcom/api-key", {
+        api_key: calcomApiKey
+      });
+      
+      // Update UI with new integration status
+      setIntegrations(prev => 
+        prev.map(integration => 
+          integration.id === "calcom"
+            ? { 
+                ...integration, 
+                connected: true, 
+                status: "Active", 
+                color: "success",
+                accountName: response.data.account_name || "Cal.com Account"
+              }
+            : integration
+        )
+      );
+      
+      setAlert({
+        show: true,
+        message: "Successfully connected Cal.com",
+        severity: "success"
+      });
+      
+      // Clear input
+      setCalcomApiKey("");
+    } catch (error) {
+      console.error("Failed to connect Cal.com:", error);
+      setAlert({
+        show: true,
+        message: error.response?.data?.detail || "Failed to connect Cal.com. Please check your API key.",
+        severity: "error"
+      });
+    }
   };
 
   return (
@@ -368,112 +427,260 @@ function Integrations() {
               {integrations.length > 0 ? (
                 integrations.map((integration) => (
                   <Grid item xs={12} md={6} xl={3} key={integration.id}>
-                    <Card sx={{ height: "100%" }}>
-                      <VuiBox display="flex" flexDirection="column" p={3} height="100%">
-                        <VuiBox 
-                          display="flex" 
-                          justifyContent="center" 
-                          alignItems="center" 
-                          bgColor={integration.connected ? "success" : "error"} 
-                          width="60px" 
-                          height="60px" 
-                          borderRadius="lg" 
-                          shadow="md" 
-                          mb={3}
-                        >
-                          {integration.icon}
-                        </VuiBox>
-                        
-                        <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                          <VuiTypography variant="h5" color="white" fontWeight="bold">
-                            {integration.name}
-                          </VuiTypography>
-                          <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
-                            <VuiBox>
-                              {integration.connected ? (
-                                <FaSync size="16px" color="#16f9aa" />
-                              ) : (
-                                <IoInformationCircle size="16px" color="#fff" />
-                              )}
-                            </VuiBox>
-                          </Tooltip>
-                        </VuiBox>
-                        
-                        <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
-                          {integration.description}
-                        </VuiTypography>
-                        
-                        {/* Data Pulled Section */}
-                        <VuiBox mb="auto">
-                          <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
-                            Data Pulled:
+                    {integration.id === "calcom" ? (
+                      // Special Cal.com card with API key input
+                      <Card sx={{ height: "100%" }}>
+                        <VuiBox display="flex" flexDirection="column" p={3} height="100%">
+                          <VuiBox 
+                            display="flex" 
+                            justifyContent="center" 
+                            alignItems="center" 
+                            bgColor={integration.connected ? "success" : "error"} 
+                            width="60px" 
+                            height="60px" 
+                            borderRadius="lg" 
+                            shadow="md" 
+                            mb={3}
+                          >
+                            {integration.icon}
+                          </VuiBox>
+                          
+                          <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                            <VuiTypography variant="h5" color="white" fontWeight="bold">
+                              {integration.name}
+                            </VuiTypography>
+                            <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
+                              <VuiBox>
+                                {integration.connected ? (
+                                  <FaSync size="16px" color="#16f9aa" />
+                                ) : (
+                                  <IoInformationCircle size="16px" color="#fff" />
+                                )}
+                              </VuiBox>
+                            </Tooltip>
+                          </VuiBox>
+                          
+                          <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
+                            {integration.description}
                           </VuiTypography>
                           
-                          <VuiBox pl={1} mt={1}>
-                            {integration.scopes.map((scope, index) => (
-                              <VuiTypography 
-                                key={index} 
-                                variant="caption" 
-                                color="text" 
-                                fontWeight="regular"
-                                display="block"
-                                mb={0.5}
-                              >
-                                • {scope}
-                              </VuiTypography>
-                            ))}
-                          </VuiBox>
-                        </VuiBox>
-                        
-                        {/* Account Information (if connected) */}
-                        {integration.connected && integration.accountName && (
-                          <VuiBox mt={2} mb={2}>
-                            <Divider />
-                            <VuiBox mt={2} display="flex" alignItems="center">
-                              <VuiTypography variant="button" color="text" fontWeight="regular">
-                                Connected Account:
-                              </VuiTypography>
-                              <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
-                                {integration.accountName}
-                              </VuiTypography>
+                          {/* Data Pulled Section */}
+                          <VuiBox mb="auto">
+                            <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
+                              Data Pulled:
+                            </VuiTypography>
+                            
+                            <VuiBox pl={1} mt={1}>
+                              {integration.scopes.map((scope, index) => (
+                                <VuiTypography 
+                                  key={index} 
+                                  variant="caption" 
+                                  color="text" 
+                                  fontWeight="regular"
+                                  display="block"
+                                  mb={0.5}
+                                >
+                                  • {scope}
+                                </VuiTypography>
+                              ))}
                             </VuiBox>
                           </VuiBox>
-                        )}
-                        
-                        {/* Status Indicator */}
-                        <VuiBox mt={2} display="flex" alignItems="center">
-                          {integration.connected ? (
-                            <IoCheckmarkCircle size="18px" color="#16f9aa" />
-                          ) : (
-                            <IoCloseCircle size="18px" color="#f44335" />
+                          
+                          {/* Account Information (if connected) */}
+                          {integration.connected && integration.accountName && (
+                            <VuiBox mt={2} mb={2}>
+                              <Divider />
+                              <VuiBox mt={2} display="flex" alignItems="center">
+                                <VuiTypography variant="button" color="text" fontWeight="regular">
+                                  Connected Account:
+                                </VuiTypography>
+                                <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
+                                  {integration.accountName}
+                                </VuiTypography>
+                              </VuiBox>
+                            </VuiBox>
                           )}
-                          <VuiTypography 
-                            variant="button" 
-                            color={integration.color} 
-                            fontWeight="medium" 
-                            ml={1}
+                          
+                          {/* Status Indicator */}
+                          <VuiBox mt={2} display="flex" alignItems="center">
+                            {integration.connected ? (
+                              <IoCheckmarkCircle size="18px" color="#16f9aa" />
+                            ) : (
+                              <IoCloseCircle size="18px" color="#f44335" />
+                            )}
+                            <VuiTypography 
+                              variant="button" 
+                              color={integration.color} 
+                              fontWeight="medium" 
+                              ml={1}
+                            >
+                              {integration.status}
+                            </VuiTypography>
+                          </VuiBox>
+                          
+                          {/* API Key input for Cal.com - only shown when not connected */}
+                          {!integration.connected && (
+                            <form onSubmit={handleCalcomApiKeySubmit}>
+                              <VuiBox mt={2}>
+                                <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
+                                  Enter your Cal.com API key
+                                </VuiTypography>
+                                <TextField
+                                  fullWidth
+                                  placeholder="cal_live_..."
+                                  variant="outlined"
+                                  value={calcomApiKey}
+                                  onChange={(e) => setCalcomApiKey(e.target.value)}
+                                  size="small"
+                                  sx={{
+                                    mb: 2,
+                                    '& .MuiOutlinedInput-root': {
+                                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                      '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                      '&.Mui-focused fieldset': { borderColor: '#0075ff' },
+                                      color: 'white'
+                                    }
+                                  }}
+                                />
+                                <VuiTypography variant="caption" color="info" fontWeight="regular" mb={2} display="block">
+                                  Find your API key in Cal.com dashboard under Settings &gt; Developer &gt; API Keys
+                                </VuiTypography>
+                                <VuiButton
+                                  color="success"
+                                  variant="contained"
+                                  fullWidth
+                                  type="submit"
+                                >
+                                  Connect
+                                </VuiButton>
+                              </VuiBox>
+                            </form>
+                          )}
+                          
+                          {/* Disconnect Button - only shown when connected */}
+                          {integration.connected && (
+                            <VuiBox mt={2}>
+                              <VuiButton
+                                color="error"
+                                variant="contained"
+                                fullWidth
+                                onClick={() => handleDisconnect(integration.id)}
+                              >
+                                Disconnect
+                              </VuiButton>
+                            </VuiBox>
+                          )}
+                        </VuiBox>
+                      </Card>
+                    ) : (
+                      // Standard card for other integrations
+                      <Card sx={{ height: "100%" }}>
+                        <VuiBox display="flex" flexDirection="column" p={3} height="100%">
+                          <VuiBox 
+                            display="flex" 
+                            justifyContent="center" 
+                            alignItems="center" 
+                            bgColor={integration.connected ? "success" : "error"} 
+                            width="60px" 
+                            height="60px" 
+                            borderRadius="lg" 
+                            shadow="md" 
+                            mb={3}
                           >
-                            {integration.status}
+                            {integration.icon}
+                          </VuiBox>
+                          
+                          <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                            <VuiTypography variant="h5" color="white" fontWeight="bold">
+                              {integration.name}
+                            </VuiTypography>
+                            <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
+                              <VuiBox>
+                                {integration.connected ? (
+                                  <FaSync size="16px" color="#16f9aa" />
+                                ) : (
+                                  <IoInformationCircle size="16px" color="#fff" />
+                                )}
+                              </VuiBox>
+                            </Tooltip>
+                          </VuiBox>
+                          
+                          <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
+                            {integration.description}
                           </VuiTypography>
+                          
+                          {/* Data Pulled Section */}
+                          <VuiBox mb="auto">
+                            <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
+                              Data Pulled:
+                            </VuiTypography>
+                            
+                            <VuiBox pl={1} mt={1}>
+                              {integration.scopes.map((scope, index) => (
+                                <VuiTypography 
+                                  key={index} 
+                                  variant="caption" 
+                                  color="text" 
+                                  fontWeight="regular"
+                                  display="block"
+                                  mb={0.5}
+                                >
+                                  • {scope}
+                                </VuiTypography>
+                              ))}
+                            </VuiBox>
+                          </VuiBox>
+                          
+                          {/* Account Information (if connected) */}
+                          {integration.connected && integration.accountName && (
+                            <VuiBox mt={2} mb={2}>
+                              <Divider />
+                              <VuiBox mt={2} display="flex" alignItems="center">
+                                <VuiTypography variant="button" color="text" fontWeight="regular">
+                                  Connected Account:
+                                </VuiTypography>
+                                <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
+                                  {integration.accountName}
+                                </VuiTypography>
+                              </VuiBox>
+                            </VuiBox>
+                          )}
+                          
+                          {/* Status Indicator */}
+                          <VuiBox mt={2} display="flex" alignItems="center">
+                            {integration.connected ? (
+                              <IoCheckmarkCircle size="18px" color="#16f9aa" />
+                            ) : (
+                              <IoCloseCircle size="18px" color="#f44335" />
+                            )}
+                            <VuiTypography 
+                              variant="button" 
+                              color={integration.color} 
+                              fontWeight="medium" 
+                              ml={1}
+                            >
+                              {integration.status}
+                            </VuiTypography>
+                          </VuiBox>
+                          
+                          {/* Connect/Disconnect Button */}
+                          <VuiBox mt={2}>
+                            <VuiButton
+                              color={integration.connected ? "error" : "success"}
+                              variant="contained"
+                              fullWidth
+                              onClick={() => 
+                                integration.connected 
+                                  ? handleDisconnect(integration.id)
+                                  : handleConnect(integration.id)
+                              }
+                            >
+                              {integration.connected ? "Disconnect" : "Connect"}
+                            </VuiButton>
+                          </VuiBox>
                         </VuiBox>
-                        
-                        {/* Connect/Disconnect Button */}
-                        <VuiBox mt={2}>
-                          <VuiButton
-                            color={integration.connected ? "error" : "success"}
-                            variant="contained"
-                            fullWidth
-                            onClick={() => 
-                              integration.connected 
-                                ? handleDisconnect(integration.id)
-                                : handleConnect(integration.id)
-                            }
-                          >
-                            {integration.connected ? "Disconnect" : "Connect"}
-                          </VuiButton>
-                        </VuiBox>
-                      </VuiBox>
-                    </Card>
+                      </Card>
+                    )}
                   </Grid>
                 ))
               ) : (
