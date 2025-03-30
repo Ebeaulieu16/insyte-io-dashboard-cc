@@ -9,7 +9,7 @@ import GradientBorder from "examples/GradientBorder";
 import LoginForm from "layouts/authentication/components/LoginForm";
 
 // Images
-import bgSignIn from "assets/images/signIn-cover.png";
+import bgSignIn from "assets/images/signInImage.png";
 
 function Login() {
   return (
