@@ -8,13 +8,21 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
 from dotenv import load_dotenv
+import traceback
+from fastapi.responses import JSONResponse
+from fastapi import Request, status
 
 # Load environment variables
 load_dotenv()
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Set up logging - Enhanced for better error reporting
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
 logger = logging.getLogger(__name__)
+logger.info(f"Starting application with log level: {log_level}")
 
 # Import routes
 from app.routes import dashboard, youtube, sales, auth, utm
@@ -83,3 +91,17 @@ async def startup():
 async def root():
     """Root endpoint for API health check."""
     return {"status": "online", "message": "Insyte.io Dashboard API is running"}
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global exception handler for unhandled exceptions.
+    Logs the full traceback and returns a JSON response.
+    """
+    error_details = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    logger.error(f"Unhandled exception: {str(exc)}\n{error_details}")
+    
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error. Please check server logs for details."}
+    )
