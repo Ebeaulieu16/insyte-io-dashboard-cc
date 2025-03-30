@@ -156,12 +156,31 @@ function DeepView() {
             
             {/* Funnel Analysis */}
             <Grid item xs={12} lg={5}>
-              <FunnelAnalysis data={analyticsData} />
+              <FunnelAnalysis data={{
+                views: analyticsData.views || 0,
+                clicks: analyticsData.clicks || 0,
+                calls: {
+                  booked: analyticsData.calls.booked || 0,
+                  completed: analyticsData.calls.completed || 0,
+                  no_show: analyticsData.calls.no_show || 0,
+                },
+                deals: {
+                  closed: analyticsData.deals.closed || 0,
+                  revenue: analyticsData.deals.revenue || 0,
+                }
+              }} />
             </Grid>
             
             {/* Call List */}
             <Grid item xs={12}>
-              <CallsList calls={analyticsData.calls.list} />
+              <CallsList calls={analyticsData.calls.list.map(call => ({
+                date: call.date || call.timestamp,
+                status: call.status,
+                client_name: call.client_name || 'Anonymous',
+                client_email: call.email,
+                duration: call.duration || 0,
+                revenue: call.revenue || 0
+              }))} />
             </Grid>
             
             {/* Video Metrics */}
