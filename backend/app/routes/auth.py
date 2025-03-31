@@ -670,3 +670,353 @@ def connect_calcom_api_key(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error connecting Cal.com: {str(e)}"
         )
+
+@router.post("/api/integrations/youtube/api-key")
+def connect_youtube_api_key(
+    api_data: dict, 
+    db: Session = Depends(get_db),
+    user_id: int = 1  # Default to user 1 for now
+):
+    """
+    Connect YouTube using API key and channel ID.
+    
+    Args:
+        api_data: JSON object containing the API key and channel ID
+        db: Database session
+        user_id: User ID (defaults to 1 for testing/demo)
+        
+    Returns:
+        JSON response with connection status
+    """
+    logger.info(f"Connecting YouTube via API key for user {user_id}")
+    
+    if "api_key" not in api_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="API key is required"
+        )
+    
+    if "channel_id" not in api_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="YouTube channel ID is required"
+        )
+    
+    youtube_api_key = api_data["api_key"].strip()
+    channel_id = api_data["channel_id"].strip()
+    
+    # Validate the API key by making a request to YouTube API for the channel info
+    try:
+        with httpx.Client() as client:
+            response = client.get(
+                f"https://www.googleapis.com/youtube/v3/channels",
+                params={
+                    "part": "snippet",
+                    "id": channel_id,
+                    "key": youtube_api_key
+                },
+                timeout=10.0
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"YouTube API key validation failed: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid YouTube API key or channel ID: {response.text}"
+                )
+            
+            channel_data = response.json()
+            
+            # Check if the channel exists and we have access to it
+            if not channel_data.get("items") or len(channel_data["items"]) == 0:
+                logger.error(f"YouTube channel not found: {channel_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"YouTube channel not found: {channel_id}"
+                )
+            
+            channel_info = channel_data["items"][0]
+            channel_name = channel_info["snippet"]["title"]
+            
+            logger.info(f"YouTube API key validated successfully for channel: {channel_name}")
+            
+            # Check if this integration already exists for the user
+            existing_integration = db.query(Integration).filter(
+                Integration.user_id == user_id,
+                Integration.platform == "youtube"
+            ).first()
+            
+            now = datetime.utcnow()
+            
+            if existing_integration:
+                # Update existing integration
+                existing_integration.auth_type = IntegrationAuthType.API_KEY
+                existing_integration.access_token = None
+                existing_integration.account_name = channel_name
+                existing_integration.account_id = channel_id
+                existing_integration.extra_data = {
+                    "api_key": youtube_api_key,
+                    "channel_id": channel_id,
+                    "channel_info": channel_info
+                }
+                existing_integration.last_sync = now
+                existing_integration.status = IntegrationStatus.CONNECTED
+                logger.info(f"Updated existing YouTube integration for user {user_id}")
+            else:
+                # Create new integration
+                new_integration = Integration(
+                    user_id=user_id,
+                    platform="youtube",
+                    auth_type=IntegrationAuthType.API_KEY,
+                    account_name=channel_name,
+                    account_id=channel_id,
+                    extra_data={
+                        "api_key": youtube_api_key,
+                        "channel_id": channel_id,
+                        "channel_info": channel_info
+                    },
+                    last_sync=now,
+                    status=IntegrationStatus.CONNECTED
+                )
+                db.add(new_integration)
+                logger.info(f"Created new YouTube integration for user {user_id}")
+            
+            db.commit()
+            
+            return {"status": "success", "account_name": channel_name}
+            
+    except httpx.RequestError as e:
+        logger.error(f"Error connecting to YouTube API: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error connecting to YouTube API: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error connecting YouTube: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error connecting YouTube: {str(e)}"
+        )
+
+@router.post("/api/integrations/stripe/api-key")
+def connect_stripe_api_key(
+    api_key: dict, 
+    db: Session = Depends(get_db),
+    user_id: int = 1  # Default to user 1 for now
+):
+    """
+    Connect Stripe using API key.
+    
+    Args:
+        api_key: JSON object containing the API key
+        db: Database session
+        user_id: User ID (defaults to 1 for testing/demo)
+        
+    Returns:
+        JSON response with connection status
+    """
+    logger.info(f"Connecting Stripe via API key for user {user_id}")
+    
+    if "api_key" not in api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="API key is required"
+        )
+    
+    stripe_api_key = api_key["api_key"].strip()
+    
+    # Validate the API key by making a request to Stripe API
+    try:
+        with httpx.Client() as client:
+            # Use Stripe API to get account info
+            response = client.get(
+                "https://api.stripe.com/v1/account",
+                headers={
+                    "Authorization": f"Bearer {stripe_api_key}",
+                    "Content-Type": "application/json"
+                },
+                timeout=10.0
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Stripe API key validation failed: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid Stripe API key: {response.text}"
+                )
+            
+            account_data = response.json()
+            # Use business name or email as the account name
+            account_name = account_data.get("business_profile", {}).get("name") or account_data.get("email", "Stripe Account")
+            account_id = account_data.get("id", "")
+            
+            logger.info(f"Stripe API key validated successfully for account: {account_name}")
+            
+            # Check if this integration already exists for the user
+            existing_integration = db.query(Integration).filter(
+                Integration.user_id == user_id,
+                Integration.platform == "stripe"
+            ).first()
+            
+            now = datetime.utcnow()
+            
+            if existing_integration:
+                # Update existing integration
+                existing_integration.auth_type = IntegrationAuthType.API_KEY
+                existing_integration.access_token = None
+                existing_integration.account_name = account_name
+                existing_integration.account_id = account_id
+                existing_integration.extra_data = {
+                    "api_key": stripe_api_key,
+                    "account_data": account_data
+                }
+                existing_integration.last_sync = now
+                existing_integration.status = IntegrationStatus.CONNECTED
+                logger.info(f"Updated existing Stripe integration for user {user_id}")
+            else:
+                # Create new integration
+                new_integration = Integration(
+                    user_id=user_id,
+                    platform="stripe",
+                    auth_type=IntegrationAuthType.API_KEY,
+                    account_name=account_name,
+                    account_id=account_id,
+                    extra_data={
+                        "api_key": stripe_api_key,
+                        "account_data": account_data
+                    },
+                    last_sync=now,
+                    status=IntegrationStatus.CONNECTED
+                )
+                db.add(new_integration)
+                logger.info(f"Created new Stripe integration for user {user_id}")
+            
+            db.commit()
+            
+            return {"status": "success", "account_name": account_name}
+            
+    except httpx.RequestError as e:
+        logger.error(f"Error connecting to Stripe API: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error connecting to Stripe API: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error connecting Stripe: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error connecting Stripe: {str(e)}"
+        )
+
+@router.post("/api/integrations/calendly/api-key")
+def connect_calendly_api_key(
+    api_key: dict, 
+    db: Session = Depends(get_db),
+    user_id: int = 1  # Default to user 1 for now
+):
+    """
+    Connect Calendly using API key.
+    
+    Args:
+        api_key: JSON object containing the API key
+        db: Database session
+        user_id: User ID (defaults to 1 for testing/demo)
+        
+    Returns:
+        JSON response with connection status
+    """
+    logger.info(f"Connecting Calendly via API key for user {user_id}")
+    
+    if "api_key" not in api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="API key is required"
+        )
+    
+    calendly_api_key = api_key["api_key"].strip()
+    
+    # Validate the API key by making a request to Calendly API
+    try:
+        with httpx.Client() as client:
+            # Use Calendly API to get user info
+            response = client.get(
+                "https://api.calendly.com/users/me",
+                headers={
+                    "Authorization": f"Bearer {calendly_api_key}",
+                    "Content-Type": "application/json"
+                },
+                timeout=10.0
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"Calendly API key validation failed: {response.status_code} - {response.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid Calendly API key: {response.text}"
+                )
+            
+            user_data = response.json()
+            resource = user_data.get("resource", {})
+            account_name = resource.get("name", "Calendly User")
+            account_id = resource.get("uri", "").split("/")[-1] if resource.get("uri") else ""
+            
+            logger.info(f"Calendly API key validated successfully for user: {account_name}")
+            
+            # Check if this integration already exists for the user
+            existing_integration = db.query(Integration).filter(
+                Integration.user_id == user_id,
+                Integration.platform == "calendly"
+            ).first()
+            
+            now = datetime.utcnow()
+            
+            if existing_integration:
+                # Update existing integration
+                existing_integration.auth_type = IntegrationAuthType.API_KEY
+                existing_integration.access_token = None
+                existing_integration.account_name = account_name
+                existing_integration.account_id = account_id
+                existing_integration.extra_data = {
+                    "api_key": calendly_api_key,
+                    "user_data": user_data
+                }
+                existing_integration.last_sync = now
+                existing_integration.status = IntegrationStatus.CONNECTED
+                logger.info(f"Updated existing Calendly integration for user {user_id}")
+            else:
+                # Create new integration
+                new_integration = Integration(
+                    user_id=user_id,
+                    platform="calendly",
+                    auth_type=IntegrationAuthType.API_KEY,
+                    account_name=account_name,
+                    account_id=account_id,
+                    extra_data={
+                        "api_key": calendly_api_key,
+                        "user_data": user_data
+                    },
+                    last_sync=now,
+                    status=IntegrationStatus.CONNECTED
+                )
+                db.add(new_integration)
+                logger.info(f"Created new Calendly integration for user {user_id}")
+            
+            db.commit()
+            
+            return {"status": "success", "account_name": account_name}
+            
+    except httpx.RequestError as e:
+        logger.error(f"Error connecting to Calendly API: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error connecting to Calendly API: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error connecting Calendly: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error connecting Calendly: {str(e)}"
+        )

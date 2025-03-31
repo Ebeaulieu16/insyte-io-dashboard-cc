@@ -54,6 +54,10 @@ function Integrations() {
   const [alert, setAlert] = useState({ show: false, message: "", severity: "info" });
   const [isDemo, setIsDemo] = useState(false);
   const [calcomApiKey, setCalcomApiKey] = useState("");
+  const [youtubeApiKey, setYoutubeApiKey] = useState("");
+  const [youtubeChannelId, setYoutubeChannelId] = useState("");
+  const [stripeApiKey, setStripeApiKey] = useState("");
+  const [calendlyApiKey, setCalendlyApiKey] = useState("");
 
   // Display URL parameters as alerts (for OAuth redirects)
   useEffect(() => {
@@ -280,14 +284,20 @@ function Integrations() {
 
   // Handle connect/disconnect actions
   const handleConnect = (platform) => {
-    // Cal.com now handles its connection through the API key form
-    if (platform === "calcom") {
-      // Do nothing - the form on the Cal.com card handles this
-      return;
-    }
+    // All platforms now use API key forms, so we don't need to redirect
+    console.log(`Connect button clicked for ${platform} - using API key form instead of OAuth`);
     
-    // Redirect to the backend OAuth initiation endpoint for other platforms
-    window.location.href = `${process.env.REACT_APP_API_URL}/auth/${platform}`;
+    // Show a helpful message to the user
+    setAlert({
+      show: true,
+      message: `Please use the API key form to connect ${getPlatformName(platform)}`,
+      severity: "info"
+    });
+    
+    return;
+    
+    // Redirect code is kept but commented out in case OAuth is re-enabled in the future
+    // window.location.href = `${process.env.REACT_APP_API_URL}/auth/${platform}`;
   };
 
   const handleDisconnect = async (platform) => {
@@ -321,6 +331,174 @@ function Integrations() {
   // Handle alert close
   const handleCloseAlert = () => {
     setAlert(prev => ({ ...prev, show: false }));
+  };
+
+  const handleYoutubeApiKeySubmit = async (e) => {
+    e.preventDefault();
+    if (!youtubeApiKey.trim()) {
+      setAlert({
+        show: true,
+        message: "Please enter a valid YouTube API key",
+        severity: "error"
+      });
+      return;
+    }
+
+    if (!youtubeChannelId.trim()) {
+      setAlert({
+        show: true,
+        message: "Please enter your YouTube channel ID",
+        severity: "error"
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const payload = {
+        api_key: youtubeApiKey,
+        channel_id: youtubeChannelId
+      };
+      
+      const response = await api.post("/api/integrations/youtube/api-key", payload);
+      console.log("YouTube API key submitted:", response.data);
+      
+      if (response.data && response.data.status === "success") {
+        // Update the UI to reflect the new integration
+        const updatedIntegrations = integrations.map(integration => {
+          if (integration.id === "youtube") {
+            return {
+              ...integration,
+              connected: true,
+              accountName: response.data.account_name,
+              status: "Active",
+              color: "success"
+            };
+          }
+          return integration;
+        });
+        
+        setIntegrations(updatedIntegrations);
+        setYoutubeApiKey("");
+        setYoutubeChannelId("");
+        setAlert({
+          show: true,
+          message: `Successfully connected YouTube channel: ${response.data.account_name}`,
+          severity: "success"
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting YouTube API key:", error);
+      setAlert({
+        show: true,
+        message: `Error connecting YouTube: ${error.response?.data?.detail || error.message}`,
+        severity: "error"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStripeApiKeySubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      if (!stripeApiKey || stripeApiKey.trim() === "") {
+        setAlert({
+          show: true,
+          message: "Please enter a valid Stripe secret key",
+          severity: "warning"
+        });
+        return;
+      }
+      
+      // Submit API key to backend
+      const response = await api.post("/api/integrations/stripe/api-key", {
+        api_key: stripeApiKey
+      });
+      
+      // Update UI with new integration status
+      setIntegrations(prev => 
+        prev.map(integration => 
+          integration.id === "stripe"
+            ? { 
+                ...integration, 
+                connected: true, 
+                status: "Active", 
+                color: "success",
+                accountName: response.data.account_name || "Stripe Account"
+              }
+            : integration
+        )
+      );
+      
+      setAlert({
+        show: true,
+        message: "Successfully connected Stripe",
+        severity: "success"
+      });
+      
+      // Clear input
+      setStripeApiKey("");
+    } catch (error) {
+      console.error("Failed to connect Stripe:", error);
+      setAlert({
+        show: true,
+        message: error.response?.data?.detail || "Failed to connect Stripe. Please check your API key.",
+        severity: "error"
+      });
+    }
+  };
+
+  const handleCalendlyApiKeySubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      if (!calendlyApiKey || calendlyApiKey.trim() === "") {
+        setAlert({
+          show: true,
+          message: "Please enter a valid Calendly API key",
+          severity: "warning"
+        });
+        return;
+      }
+      
+      // Submit API key to backend
+      const response = await api.post("/api/integrations/calendly/api-key", {
+        api_key: calendlyApiKey
+      });
+      
+      // Update UI with new integration status
+      setIntegrations(prev => 
+        prev.map(integration => 
+          integration.id === "calendly"
+            ? { 
+                ...integration, 
+                connected: true, 
+                status: "Active", 
+                color: "success",
+                accountName: response.data.account_name || "Calendly Account"
+              }
+            : integration
+        )
+      );
+      
+      setAlert({
+        show: true,
+        message: "Successfully connected Calendly",
+        severity: "success"
+      });
+      
+      // Clear input
+      setCalendlyApiKey("");
+    } catch (error) {
+      console.error("Failed to connect Calendly:", error);
+      setAlert({
+        show: true,
+        message: error.response?.data?.detail || "Failed to connect Calendly. Please check your API key.",
+        severity: "error"
+      });
+    }
   };
 
   const handleCalcomApiKeySubmit = async (e) => {
@@ -427,260 +605,287 @@ function Integrations() {
               {integrations.length > 0 ? (
                 integrations.map((integration) => (
                   <Grid item xs={12} md={6} xl={3} key={integration.id}>
-                    {integration.id === "calcom" ? (
-                      // Special Cal.com card with API key input
-                      <Card sx={{ height: "100%" }}>
-                        <VuiBox display="flex" flexDirection="column" p={3} height="100%">
-                          <VuiBox 
-                            display="flex" 
-                            justifyContent="center" 
-                            alignItems="center" 
-                            bgColor={integration.connected ? "success" : "error"} 
-                            width="60px" 
-                            height="60px" 
-                            borderRadius="lg" 
-                            shadow="md" 
-                            mb={3}
-                          >
-                            {integration.icon}
-                          </VuiBox>
-                          
-                          <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                            <VuiTypography variant="h5" color="white" fontWeight="bold">
-                              {integration.name}
-                            </VuiTypography>
-                            <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
-                              <VuiBox>
-                                {integration.connected ? (
-                                  <FaSync size="16px" color="#16f9aa" />
-                                ) : (
-                                  <IoInformationCircle size="16px" color="#fff" />
-                                )}
-                              </VuiBox>
-                            </Tooltip>
-                          </VuiBox>
-                          
-                          <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
-                            {integration.description}
-                          </VuiTypography>
-                          
-                          {/* Data Pulled Section */}
-                          <VuiBox mb="auto">
-                            <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
-                              Data Pulled:
-                            </VuiTypography>
-                            
-                            <VuiBox pl={1} mt={1}>
-                              {integration.scopes.map((scope, index) => (
-                                <VuiTypography 
-                                  key={index} 
-                                  variant="caption" 
-                                  color="text" 
-                                  fontWeight="regular"
-                                  display="block"
-                                  mb={0.5}
-                                >
-                                  • {scope}
-                                </VuiTypography>
-                              ))}
-                            </VuiBox>
-                          </VuiBox>
-                          
-                          {/* Account Information (if connected) */}
-                          {integration.connected && integration.accountName && (
-                            <VuiBox mt={2} mb={2}>
-                              <Divider />
-                              <VuiBox mt={2} display="flex" alignItems="center">
-                                <VuiTypography variant="button" color="text" fontWeight="regular">
-                                  Connected Account:
-                                </VuiTypography>
-                                <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
-                                  {integration.accountName}
-                                </VuiTypography>
-                              </VuiBox>
-                            </VuiBox>
-                          )}
-                          
-                          {/* Status Indicator */}
-                          <VuiBox mt={2} display="flex" alignItems="center">
-                            {integration.connected ? (
-                              <IoCheckmarkCircle size="18px" color="#16f9aa" />
-                            ) : (
-                              <IoCloseCircle size="18px" color="#f44335" />
-                            )}
-                            <VuiTypography 
-                              variant="button" 
-                              color={integration.color} 
-                              fontWeight="medium" 
-                              ml={1}
-                            >
-                              {integration.status}
-                            </VuiTypography>
-                          </VuiBox>
-                          
-                          {/* API Key input for Cal.com - only shown when not connected */}
-                          {!integration.connected && (
-                            <form onSubmit={handleCalcomApiKeySubmit}>
-                              <VuiBox mt={2}>
-                                <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
-                                  Enter your Cal.com API key
-                                </VuiTypography>
-                                <TextField
-                                  fullWidth
-                                  placeholder="cal_live_..."
-                                  variant="outlined"
-                                  value={calcomApiKey}
-                                  onChange={(e) => setCalcomApiKey(e.target.value)}
-                                  size="small"
-                                  sx={{
-                                    mb: 2,
-                                    '& .MuiOutlinedInput-root': {
-                                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                                      '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                      '&.Mui-focused fieldset': { borderColor: '#0075ff' },
-                                      color: 'white'
-                                    }
-                                  }}
-                                />
-                                <VuiTypography variant="caption" color="info" fontWeight="regular" mb={2} display="block">
-                                  Find your API key in Cal.com dashboard under Settings &gt; Developer &gt; API Keys
-                                </VuiTypography>
-                                <VuiButton
-                                  color="success"
-                                  variant="contained"
-                                  fullWidth
-                                  type="submit"
-                                >
-                                  Connect
-                                </VuiButton>
-                              </VuiBox>
-                            </form>
-                          )}
-                          
-                          {/* Disconnect Button - only shown when connected */}
-                          {integration.connected && (
-                            <VuiBox mt={2}>
-                              <VuiButton
-                                color="error"
-                                variant="contained"
-                                fullWidth
-                                onClick={() => handleDisconnect(integration.id)}
-                              >
-                                Disconnect
-                              </VuiButton>
-                            </VuiBox>
-                          )}
+                    <Card sx={{ height: "100%" }}>
+                      <VuiBox display="flex" flexDirection="column" p={3} height="100%">
+                        <VuiBox 
+                          display="flex" 
+                          justifyContent="center" 
+                          alignItems="center" 
+                          bgColor={integration.connected ? "success" : "error"} 
+                          width="60px" 
+                          height="60px" 
+                          borderRadius="lg" 
+                          shadow="md" 
+                          mb={3}
+                        >
+                          {integration.icon}
                         </VuiBox>
-                      </Card>
-                    ) : (
-                      // Standard card for other integrations
-                      <Card sx={{ height: "100%" }}>
-                        <VuiBox display="flex" flexDirection="column" p={3} height="100%">
-                          <VuiBox 
-                            display="flex" 
-                            justifyContent="center" 
-                            alignItems="center" 
-                            bgColor={integration.connected ? "success" : "error"} 
-                            width="60px" 
-                            height="60px" 
-                            borderRadius="lg" 
-                            shadow="md" 
-                            mb={3}
-                          >
-                            {integration.icon}
-                          </VuiBox>
-                          
-                          <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                            <VuiTypography variant="h5" color="white" fontWeight="bold">
-                              {integration.name}
-                            </VuiTypography>
-                            <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
-                              <VuiBox>
-                                {integration.connected ? (
-                                  <FaSync size="16px" color="#16f9aa" />
-                                ) : (
-                                  <IoInformationCircle size="16px" color="#fff" />
-                                )}
-                              </VuiBox>
-                            </Tooltip>
-                          </VuiBox>
-                          
-                          <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
-                            {integration.description}
+                        
+                        <VuiBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                          <VuiTypography variant="h5" color="white" fontWeight="bold">
+                            {integration.name}
+                          </VuiTypography>
+                          <Tooltip title={integration.connected ? "Last synced" : "Not connected"}>
+                            <VuiBox>
+                              {integration.connected ? (
+                                <FaSync size="16px" color="#16f9aa" />
+                              ) : (
+                                <IoInformationCircle size="16px" color="#fff" />
+                              )}
+                            </VuiBox>
+                          </Tooltip>
+                        </VuiBox>
+                        
+                        <VuiTypography variant="button" color="text" fontWeight="regular" mb={2}>
+                          {integration.description}
+                        </VuiTypography>
+                        
+                        {/* Data Pulled Section */}
+                        <VuiBox mb="auto">
+                          <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
+                            Data Pulled:
                           </VuiTypography>
                           
-                          {/* Data Pulled Section */}
-                          <VuiBox mb="auto">
-                            <VuiTypography variant="caption" color="text" fontWeight="bold" textTransform="uppercase">
-                              Data Pulled:
-                            </VuiTypography>
-                            
-                            <VuiBox pl={1} mt={1}>
-                              {integration.scopes.map((scope, index) => (
-                                <VuiTypography 
-                                  key={index} 
-                                  variant="caption" 
-                                  color="text" 
-                                  fontWeight="regular"
-                                  display="block"
-                                  mb={0.5}
-                                >
-                                  • {scope}
-                                </VuiTypography>
-                              ))}
+                          <VuiBox pl={1} mt={1}>
+                            {integration.scopes.map((scope, index) => (
+                              <VuiTypography 
+                                key={index} 
+                                variant="caption" 
+                                color="text" 
+                                fontWeight="regular"
+                                display="block"
+                                mb={0.5}
+                              >
+                                • {scope}
+                              </VuiTypography>
+                            ))}
+                          </VuiBox>
+                        </VuiBox>
+                        
+                        {/* Account Information (if connected) */}
+                        {integration.connected && integration.accountName && (
+                          <VuiBox mt={2} mb={2}>
+                            <Divider />
+                            <VuiBox mt={2} display="flex" alignItems="center">
+                              <VuiTypography variant="button" color="text" fontWeight="regular">
+                                Connected Account:
+                              </VuiTypography>
+                              <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
+                                {integration.accountName}
+                              </VuiTypography>
                             </VuiBox>
                           </VuiBox>
-                          
-                          {/* Account Information (if connected) */}
-                          {integration.connected && integration.accountName && (
-                            <VuiBox mt={2} mb={2}>
-                              <Divider />
-                              <VuiBox mt={2} display="flex" alignItems="center">
-                                <VuiTypography variant="button" color="text" fontWeight="regular">
-                                  Connected Account:
-                                </VuiTypography>
-                                <VuiTypography variant="button" color="white" fontWeight="medium" ml={1}>
-                                  {integration.accountName}
-                                </VuiTypography>
-                              </VuiBox>
-                            </VuiBox>
+                        )}
+                        
+                        {/* Status Indicator */}
+                        <VuiBox mt={2} display="flex" alignItems="center">
+                          {integration.connected ? (
+                            <IoCheckmarkCircle size="18px" color="#16f9aa" />
+                          ) : (
+                            <IoCloseCircle size="18px" color="#f44335" />
                           )}
-                          
-                          {/* Status Indicator */}
-                          <VuiBox mt={2} display="flex" alignItems="center">
-                            {integration.connected ? (
-                              <IoCheckmarkCircle size="18px" color="#16f9aa" />
-                            ) : (
-                              <IoCloseCircle size="18px" color="#f44335" />
+                          <VuiTypography 
+                            variant="button" 
+                            color={integration.color} 
+                            fontWeight="medium" 
+                            ml={1}
+                          >
+                            {integration.status}
+                          </VuiTypography>
+                        </VuiBox>
+                        
+                        {/* API Key forms based on platform - only shown when not connected */}
+                        {!integration.connected && (
+                          <>
+                            {integration.id === "youtube" && (
+                              <form onSubmit={handleYoutubeApiKeySubmit}>
+                                <VuiBox mt={2}>
+                                  <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
+                                    Enter your YouTube API key
+                                  </VuiTypography>
+                                  <TextField
+                                    fullWidth
+                                    placeholder="AIzaSyA..."
+                                    variant="outlined"
+                                    value={youtubeApiKey}
+                                    onChange={(e) => setYoutubeApiKey(e.target.value)}
+                                    size="small"
+                                    sx={{
+                                      mb: 2,
+                                      '& .MuiOutlinedInput-root': {
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
+                                        color: 'white'
+                                      }
+                                    }}
+                                  />
+                                  <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
+                                    Enter your YouTube Channel ID
+                                  </VuiTypography>
+                                  <TextField
+                                    fullWidth
+                                    placeholder="UCxxx..."
+                                    variant="outlined"
+                                    value={youtubeChannelId}
+                                    onChange={(e) => setYoutubeChannelId(e.target.value)}
+                                    size="small"
+                                    sx={{
+                                      mb: 2,
+                                      '& .MuiOutlinedInput-root': {
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
+                                        color: 'white'
+                                      }
+                                    }}
+                                  />
+                                  <VuiTypography variant="caption" color="info" fontWeight="regular" mb={2} display="block">
+                                    Create an API key in Google Cloud Console and get your Channel ID from your YouTube URL
+                                  </VuiTypography>
+                                  <VuiButton
+                                    color="success"
+                                    variant="contained"
+                                    fullWidth
+                                    type="submit"
+                                  >
+                                    Connect
+                                  </VuiButton>
+                                </VuiBox>
+                              </form>
                             )}
-                            <VuiTypography 
-                              variant="button" 
-                              color={integration.color} 
-                              fontWeight="medium" 
-                              ml={1}
-                            >
-                              {integration.status}
-                            </VuiTypography>
-                          </VuiBox>
-                          
-                          {/* Connect/Disconnect Button */}
+                            
+                            {integration.id === "stripe" && (
+                              <form onSubmit={handleStripeApiKeySubmit}>
+                                <VuiBox mt={2}>
+                                  <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
+                                    Enter your Stripe Secret Key
+                                  </VuiTypography>
+                                  <TextField
+                                    fullWidth
+                                    placeholder="sk_live_..."
+                                    variant="outlined"
+                                    value={stripeApiKey}
+                                    onChange={(e) => setStripeApiKey(e.target.value)}
+                                    size="small"
+                                    sx={{
+                                      mb: 2,
+                                      '& .MuiOutlinedInput-root': {
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
+                                        color: 'white'
+                                      }
+                                    }}
+                                  />
+                                  <VuiTypography variant="caption" color="info" fontWeight="regular" mb={2} display="block">
+                                    Find your API key in Stripe Dashboard under Developers &gt; API keys
+                                  </VuiTypography>
+                                  <VuiButton
+                                    color="success"
+                                    variant="contained"
+                                    fullWidth
+                                    type="submit"
+                                  >
+                                    Connect
+                                  </VuiButton>
+                                </VuiBox>
+                              </form>
+                            )}
+                            
+                            {integration.id === "calendly" && (
+                              <form onSubmit={handleCalendlyApiKeySubmit}>
+                                <VuiBox mt={2}>
+                                  <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
+                                    Enter your Calendly API key
+                                  </VuiTypography>
+                                  <TextField
+                                    fullWidth
+                                    placeholder="cal_live_..."
+                                    variant="outlined"
+                                    value={calendlyApiKey}
+                                    onChange={(e) => setCalendlyApiKey(e.target.value)}
+                                    size="small"
+                                    sx={{
+                                      mb: 2,
+                                      '& .MuiOutlinedInput-root': {
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
+                                        color: 'white'
+                                      }
+                                    }}
+                                  />
+                                  <VuiTypography variant="caption" color="info" fontWeight="regular" mb={2} display="block">
+                                    Find your API key in Calendly under Integrations &gt; API &amp; Webhooks
+                                  </VuiTypography>
+                                  <VuiButton
+                                    color="success"
+                                    variant="contained"
+                                    fullWidth
+                                    type="submit"
+                                  >
+                                    Connect
+                                  </VuiButton>
+                                </VuiBox>
+                              </form>
+                            )}
+                            
+                            {integration.id === "calcom" && (
+                              <form onSubmit={handleCalcomApiKeySubmit}>
+                                <VuiBox mt={2}>
+                                  <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
+                                    Enter your Cal.com API key
+                                  </VuiTypography>
+                                  <TextField
+                                    fullWidth
+                                    placeholder="cal_live_..."
+                                    variant="outlined"
+                                    value={calcomApiKey}
+                                    onChange={(e) => setCalcomApiKey(e.target.value)}
+                                    size="small"
+                                    sx={{
+                                      mb: 2,
+                                      '& .MuiOutlinedInput-root': {
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
+                                        color: 'white'
+                                      }
+                                    }}
+                                  />
+                                  <VuiTypography variant="caption" color="info" fontWeight="regular" mb={2} display="block">
+                                    Find your API key in Cal.com dashboard under Settings &gt; Developer &gt; API Keys
+                                  </VuiTypography>
+                                  <VuiButton
+                                    color="success"
+                                    variant="contained"
+                                    fullWidth
+                                    type="submit"
+                                  >
+                                    Connect
+                                  </VuiButton>
+                                </VuiBox>
+                              </form>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Disconnect Button - only shown when connected */}
+                        {integration.connected && (
                           <VuiBox mt={2}>
                             <VuiButton
-                              color={integration.connected ? "error" : "success"}
+                              color="error"
                               variant="contained"
                               fullWidth
-                              onClick={() => 
-                                integration.connected 
-                                  ? handleDisconnect(integration.id)
-                                  : handleConnect(integration.id)
-                              }
+                              onClick={() => handleDisconnect(integration.id)}
                             >
-                              {integration.connected ? "Disconnect" : "Connect"}
+                              Disconnect
                             </VuiButton>
                           </VuiBox>
-                        </VuiBox>
-                      </Card>
-                    )}
+                        )}
+                      </VuiBox>
+                    </Card>
                   </Grid>
                 ))
               ) : (
