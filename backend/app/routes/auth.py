@@ -15,6 +15,7 @@ import os
 from urllib.parse import urlencode
 import jwt
 import logging
+import enum
 
 from app.database import get_db
 from app.models.integration import Integration, IntegrationType, IntegrationStatus, IntegrationAuthType
@@ -464,35 +465,49 @@ async def get_integration_status(
         # Initialize integrations list
         db_integrations = []
         
-        # Get integrations from database for the current user
-        # Create a new session for each attempt to avoid transaction issues
-        try:
-            # Try to query with user_id first
+        # Create a new session for database operations
+        from app.database import SessionLocal
+        from sqlalchemy.sql import text
+        
+        with SessionLocal() as session:
+            # Check if user_id column exists using raw SQL
+            has_user_id_column = True
             try:
-                # Create new session for this query
-                from app.database import SessionLocal
-                with SessionLocal() as new_db:
-                    db_integrations = new_db.query(Integration).filter(Integration.user_id == user_id).all()
-                    # Copy the results to detach them from the session
-                    db_integrations = [integration for integration in db_integrations]
-                logger.info(f"Retrieved {len(db_integrations)} integrations for user {user_id} using user_id column")
-            except Exception as user_id_error:
-                # If that fails (possibly because user_id column doesn't exist),
-                # just get all integrations as a fallback
-                logger.warning(f"Error querying by user_id, falling back to all integrations: {str(user_id_error)}")
-                # Create new session for fallback query
-                from app.database import SessionLocal
-                with SessionLocal() as new_db:
-                    db_integrations = new_db.query(Integration).all()
-                    # Copy the results to detach them from the session
-                    db_integrations = [integration for integration in db_integrations]
-                logger.info(f"Retrieved {len(db_integrations)} integrations without user_id filter")
-        except Exception as db_error:
-            logger.error(f"Database error fetching integrations: {str(db_error)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database error: {str(db_error)}"
-            )
+                # This query checks if user_id column exists in integrations table
+                session.execute(text("SELECT user_id FROM integrations LIMIT 0"))
+            except Exception as column_check_error:
+                logger.warning(f"user_id column doesn't exist yet: {str(column_check_error)}")
+                has_user_id_column = False
+                session.rollback()
+            
+            try:
+                # Fetch integrations with raw SQL based on whether user_id column exists
+                if has_user_id_column:
+                    # If user_id column exists, filter by user_id
+                    result = session.execute(
+                        text("SELECT id, platform, status, account_name, last_sync FROM integrations WHERE user_id = :user_id"),
+                        {"user_id": user_id}
+                    )
+                else:
+                    # If user_id column doesn't exist, get all integrations
+                    result = session.execute(
+                        text("SELECT id, platform, status, account_name, last_sync FROM integrations")
+                    )
+                
+                # Process results
+                rows = result.fetchall()
+                for row in rows:
+                    integration_data = dict(zip(result.keys(), row))
+                    db_integrations.append(integration_data)
+                
+                logger.info(f"Retrieved {len(db_integrations)} integrations using raw SQL")
+            except Exception as db_error:
+                logger.error(f"Database error fetching integrations: {str(db_error)}")
+                session.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Database error: {str(db_error)}"
+                )
         
         # Create status dict with default values
         status_dict = {platform: {"platform": platform, "status": "disconnected"} for platform in platforms}
@@ -500,16 +515,20 @@ async def get_integration_status(
         # Update with actual values from DB
         for integration in db_integrations:
             try:
-                status = integration.status if isinstance(integration.status, str) else str(integration.status)
-                status_dict[integration.platform] = {
-                    "platform": integration.platform,
-                    "status": status,
-                    "account_name": integration.account_name,
-                    "last_sync": integration.last_sync
-                }
+                platform = integration.get('platform')
+                if platform in status_dict:
+                    status_value = integration.get('status')
+                    if isinstance(status_value, (IntegrationStatus, enum.Enum)):
+                        status_value = status_value.value
+                    
+                    status_dict[platform] = {
+                        "platform": platform,
+                        "status": status_value,
+                        "account_name": integration.get('account_name'),
+                        "last_sync": integration.get('last_sync')
+                    }
             except Exception as integration_error:
-                logger.error(f"Error processing integration {getattr(integration, 'id', 'unknown')}: {str(integration_error)}")
-                # Continue processing other integrations
+                logger.error(f"Error processing integration {integration.get('id', 'unknown')}: {str(integration_error)}")
                 continue
         
         # Convert to list and return
@@ -976,7 +995,9 @@ def connect_stripe_api_key(
         JSON response with connection status
     """
     # Use a new database session to ensure clean transactions
-    from app.database import SessionLocal
+    from app.database import SessionLocal, engine
+    import sqlalchemy as sa
+    from sqlalchemy.sql import text
     
     try:
         # Use the authenticated user's ID if available, otherwise default to 1 for demo
@@ -1002,95 +1023,121 @@ def connect_stripe_api_key(
             
             # Create a new session for database operations
             with SessionLocal() as session:
-                # Check if this integration already exists for the user
-                # Try to query with user_id, but handle case where column may not exist yet
+                # Check if user_id column exists using raw SQL
+                has_user_id_column = True
+                try:
+                    # This query checks if user_id column exists in integrations table
+                    session.execute(text("SELECT user_id FROM integrations LIMIT 0"))
+                except Exception as column_check_error:
+                    logger.warning(f"user_id column doesn't exist yet: {str(column_check_error)}")
+                    has_user_id_column = False
+                    session.rollback()  # Important: roll back the transaction
+                
+                # Check if this integration already exists for the user using raw SQL to avoid ORM issues
                 existing_integration = None
                 try:
-                    # Try with user_id filter
-                    existing_integration = session.query(Integration).filter(
-                        Integration.user_id == user_id,
-                        Integration.platform == "stripe"
-                    ).first()
-                    
-                    logger.info(f"Queried integrations with user_id filter: {existing_integration}")
-                except Exception as user_id_error:
-                    # Fallback: if user_id column doesn't exist, just filter by platform
-                    logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
-                    session.rollback()  # Important: roll back the transaction
-                    
-                    try:
-                        existing_integration = session.query(Integration).filter(
-                            Integration.platform == "stripe"
-                        ).first()
-                        
-                        logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
-                    except Exception as platform_query_error:
-                        logger.error(f"Error querying by platform: {str(platform_query_error)}")
-                        session.rollback()
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Database error: {str(platform_query_error)}"
+                    if has_user_id_column:
+                        # Try with user_id filter using a safe raw SQL query
+                        result = session.execute(
+                            text("SELECT id, platform, status, auth_type, account_id, account_name, access_token, "
+                                 "refresh_token, token_type, scope, expires_at, last_sync, extra_data, created_at, updated_at "
+                                 "FROM integrations WHERE platform = :platform AND user_id = :user_id LIMIT 1"),
+                            {"platform": "stripe", "user_id": user_id}
                         )
+                    else:
+                        # Query without user_id if the column doesn't exist
+                        result = session.execute(
+                            text("SELECT id, platform, status, auth_type, account_id, account_name, access_token, "
+                                 "refresh_token, token_type, scope, expires_at, last_sync, extra_data, created_at, updated_at "
+                                 "FROM integrations WHERE platform = :platform LIMIT 1"),
+                            {"platform": "stripe"}
+                        )
+                    
+                    # Convert the result to a dictionary
+                    row = result.fetchone()
+                    if row:
+                        # Create an Integration object manually from the result
+                        integration_data = dict(zip(result.keys(), row))
+                        existing_integration = Integration(**integration_data)
+                        logger.info(f"Found existing integration: {existing_integration}")
+                except Exception as query_error:
+                    logger.warning(f"Error querying integration: {str(query_error)}")
+                    session.rollback()
+                    # Continue without existing integration
                 
                 now = datetime.utcnow()
                 
                 try:
                     if existing_integration:
-                        # Update existing integration
-                        existing_integration.auth_type = IntegrationAuthType.API_KEY
-                        existing_integration.access_token = None
-                        existing_integration.account_name = account_name
-                        existing_integration.account_id = account_id
-                        existing_integration.extra_data = {
-                            "api_key": stripe_api_key,
-                            "account_data": {"name": account_name, "id": account_id}
+                        # Update existing integration using raw SQL to avoid ORM issues with missing columns
+                        update_values = {
+                            "auth_type": str(IntegrationAuthType.API_KEY.value),
+                            "access_token": None,
+                            "account_name": account_name,
+                            "account_id": account_id,
+                            "extra_data": json.dumps({
+                                "api_key": stripe_api_key,
+                                "account_data": {"name": account_name, "id": account_id}
+                            }),
+                            "last_sync": now,
+                            "status": str(IntegrationStatus.CONNECTED.value),
+                            "id": existing_integration.id
                         }
                         
-                        # Try to set user_id if the column exists
-                        try:
-                            existing_integration.user_id = user_id
-                        except Exception as user_id_error:
-                            logger.warning(f"Could not set user_id on integration - column may not exist yet: {str(user_id_error)}")
-                            # Continue without setting user_id
-                            
-                        existing_integration.last_sync = now
-                        existing_integration.status = IntegrationStatus.CONNECTED
-                        logger.info(f"Updated existing Stripe integration for user {user_id}")
-                    else:
-                        # Create new integration
-                        try:
-                            new_integration = Integration(
-                                user_id=user_id,
-                                platform="stripe",
-                                auth_type=IntegrationAuthType.API_KEY,
-                                account_name=account_name,
-                                account_id=account_id,
-                                extra_data={
-                                    "api_key": stripe_api_key,
-                                    "account_data": {"name": account_name, "id": account_id}
-                                },
-                                last_sync=now,
-                                status=IntegrationStatus.CONNECTED
+                        # Include user_id in update if the column exists
+                        if has_user_id_column:
+                            update_values["user_id"] = user_id
+                            update_query = text(
+                                "UPDATE integrations SET auth_type = :auth_type, access_token = :access_token, "
+                                "account_name = :account_name, account_id = :account_id, extra_data = :extra_data, "
+                                "last_sync = :last_sync, status = :status, user_id = :user_id "
+                                "WHERE id = :id"
                             )
-                        except Exception as create_error:
-                            # If user_id column doesn't exist, try creating without it
-                            logger.warning(f"Error creating integration with user_id: {str(create_error)}")
-                            session.rollback()
-                            
-                            new_integration = Integration(
-                                platform="stripe",
-                                auth_type=IntegrationAuthType.API_KEY,
-                                account_name=account_name,
-                                account_id=account_id,
-                                extra_data={
-                                    "api_key": stripe_api_key,
-                                    "account_data": {"name": account_name, "id": account_id}
-                                },
-                                last_sync=now,
-                                status=IntegrationStatus.CONNECTED
+                        else:
+                            update_query = text(
+                                "UPDATE integrations SET auth_type = :auth_type, access_token = :access_token, "
+                                "account_name = :account_name, account_id = :account_id, extra_data = :extra_data, "
+                                "last_sync = :last_sync, status = :status "
+                                "WHERE id = :id"
                             )
                         
-                        session.add(new_integration)
+                        session.execute(update_query, update_values)
+                        logger.info(f"Updated existing Stripe integration for user {user_id}")
+                    else:
+                        # Create new integration using raw SQL to avoid ORM issues with missing columns
+                        insert_values = {
+                            "platform": "stripe",
+                            "auth_type": str(IntegrationAuthType.API_KEY.value),
+                            "account_name": account_name,
+                            "account_id": account_id,
+                            "extra_data": json.dumps({
+                                "api_key": stripe_api_key,
+                                "account_data": {"name": account_name, "id": account_id}
+                            }),
+                            "last_sync": now,
+                            "status": str(IntegrationStatus.CONNECTED.value),
+                            "created_at": now,
+                            "updated_at": now
+                        }
+                        
+                        # Include user_id in insert if the column exists
+                        if has_user_id_column:
+                            insert_values["user_id"] = user_id
+                            insert_query = text(
+                                "INSERT INTO integrations (platform, auth_type, account_name, account_id, extra_data, "
+                                "last_sync, status, created_at, updated_at, user_id) "
+                                "VALUES (:platform, :auth_type, :account_name, :account_id, :extra_data, "
+                                ":last_sync, :status, :created_at, :updated_at, :user_id)"
+                            )
+                        else:
+                            insert_query = text(
+                                "INSERT INTO integrations (platform, auth_type, account_name, account_id, extra_data, "
+                                "last_sync, status, created_at, updated_at) "
+                                "VALUES (:platform, :auth_type, :account_name, :account_id, :extra_data, "
+                                ":last_sync, :status, :created_at, :updated_at)"
+                            )
+                        
+                        session.execute(insert_query, insert_values)
                         logger.info(f"Created new Stripe integration for user {user_id}")
                     
                     # Commit the transaction
@@ -1141,6 +1188,7 @@ def connect_calendly_api_key(
     """
     # Use a new database session to ensure clean transactions
     from app.database import SessionLocal
+    from sqlalchemy.sql import text
     
     try:
         # Use the authenticated user's ID if available, otherwise default to 1 for demo
@@ -1166,95 +1214,121 @@ def connect_calendly_api_key(
             
             # Create a new session for database operations
             with SessionLocal() as session:
-                # Check if this integration already exists for the user
-                # Try to query with user_id, but handle case where column may not exist yet
+                # Check if user_id column exists using raw SQL
+                has_user_id_column = True
+                try:
+                    # This query checks if user_id column exists in integrations table
+                    session.execute(text("SELECT user_id FROM integrations LIMIT 0"))
+                except Exception as column_check_error:
+                    logger.warning(f"user_id column doesn't exist yet: {str(column_check_error)}")
+                    has_user_id_column = False
+                    session.rollback()  # Important: roll back the transaction
+                
+                # Check if this integration already exists for the user using raw SQL to avoid ORM issues
                 existing_integration = None
                 try:
-                    # Try with user_id filter
-                    existing_integration = session.query(Integration).filter(
-                        Integration.user_id == user_id,
-                        Integration.platform == "calendly"
-                    ).first()
-                    
-                    logger.info(f"Queried integrations with user_id filter: {existing_integration}")
-                except Exception as user_id_error:
-                    # Fallback: if user_id column doesn't exist, just filter by platform
-                    logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
-                    session.rollback()  # Important: roll back the transaction
-                    
-                    try:
-                        existing_integration = session.query(Integration).filter(
-                            Integration.platform == "calendly"
-                        ).first()
-                        
-                        logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
-                    except Exception as platform_query_error:
-                        logger.error(f"Error querying by platform: {str(platform_query_error)}")
-                        session.rollback()
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Database error: {str(platform_query_error)}"
+                    if has_user_id_column:
+                        # Try with user_id filter using a safe raw SQL query
+                        result = session.execute(
+                            text("SELECT id, platform, status, auth_type, account_id, account_name, access_token, "
+                                 "refresh_token, token_type, scope, expires_at, last_sync, extra_data, created_at, updated_at "
+                                 "FROM integrations WHERE platform = :platform AND user_id = :user_id LIMIT 1"),
+                            {"platform": "calendly", "user_id": user_id}
                         )
+                    else:
+                        # Query without user_id if the column doesn't exist
+                        result = session.execute(
+                            text("SELECT id, platform, status, auth_type, account_id, account_name, access_token, "
+                                 "refresh_token, token_type, scope, expires_at, last_sync, extra_data, created_at, updated_at "
+                                 "FROM integrations WHERE platform = :platform LIMIT 1"),
+                            {"platform": "calendly"}
+                        )
+                    
+                    # Convert the result to a dictionary
+                    row = result.fetchone()
+                    if row:
+                        # Create an Integration object manually from the result
+                        integration_data = dict(zip(result.keys(), row))
+                        existing_integration = Integration(**integration_data)
+                        logger.info(f"Found existing integration: {existing_integration}")
+                except Exception as query_error:
+                    logger.warning(f"Error querying integration: {str(query_error)}")
+                    session.rollback()
+                    # Continue without existing integration
                 
                 now = datetime.utcnow()
                 
                 try:
                     if existing_integration:
-                        # Update existing integration
-                        existing_integration.auth_type = IntegrationAuthType.API_KEY
-                        existing_integration.access_token = None
-                        existing_integration.account_name = account_name
-                        existing_integration.account_id = account_id
-                        existing_integration.extra_data = {
-                            "api_key": calendly_api_key,
-                            "user_data": {"name": account_name, "id": account_id}
+                        # Update existing integration using raw SQL to avoid ORM issues with missing columns
+                        update_values = {
+                            "auth_type": str(IntegrationAuthType.API_KEY.value),
+                            "access_token": None,
+                            "account_name": account_name,
+                            "account_id": account_id,
+                            "extra_data": json.dumps({
+                                "api_key": calendly_api_key,
+                                "user_data": {"name": account_name, "id": account_id}
+                            }),
+                            "last_sync": now,
+                            "status": str(IntegrationStatus.CONNECTED.value),
+                            "id": existing_integration.id
                         }
                         
-                        # Try to set user_id if the column exists
-                        try:
-                            existing_integration.user_id = user_id
-                        except Exception as user_id_error:
-                            logger.warning(f"Could not set user_id on integration - column may not exist yet: {str(user_id_error)}")
-                            # Continue without setting user_id
-                            
-                        existing_integration.last_sync = now
-                        existing_integration.status = IntegrationStatus.CONNECTED
-                        logger.info(f"Updated existing Calendly integration for user {user_id}")
-                    else:
-                        # Create new integration
-                        try:
-                            new_integration = Integration(
-                                user_id=user_id,
-                                platform="calendly",
-                                auth_type=IntegrationAuthType.API_KEY,
-                                account_name=account_name,
-                                account_id=account_id,
-                                extra_data={
-                                    "api_key": calendly_api_key,
-                                    "user_data": {"name": account_name, "id": account_id}
-                                },
-                                last_sync=now,
-                                status=IntegrationStatus.CONNECTED
+                        # Include user_id in update if the column exists
+                        if has_user_id_column:
+                            update_values["user_id"] = user_id
+                            update_query = text(
+                                "UPDATE integrations SET auth_type = :auth_type, access_token = :access_token, "
+                                "account_name = :account_name, account_id = :account_id, extra_data = :extra_data, "
+                                "last_sync = :last_sync, status = :status, user_id = :user_id "
+                                "WHERE id = :id"
                             )
-                        except Exception as create_error:
-                            # If user_id column doesn't exist, try creating without it
-                            logger.warning(f"Error creating integration with user_id: {str(create_error)}")
-                            session.rollback()
-                            
-                            new_integration = Integration(
-                                platform="calendly",
-                                auth_type=IntegrationAuthType.API_KEY,
-                                account_name=account_name,
-                                account_id=account_id,
-                                extra_data={
-                                    "api_key": calendly_api_key,
-                                    "user_data": {"name": account_name, "id": account_id}
-                                },
-                                last_sync=now,
-                                status=IntegrationStatus.CONNECTED
+                        else:
+                            update_query = text(
+                                "UPDATE integrations SET auth_type = :auth_type, access_token = :access_token, "
+                                "account_name = :account_name, account_id = :account_id, extra_data = :extra_data, "
+                                "last_sync = :last_sync, status = :status "
+                                "WHERE id = :id"
                             )
                         
-                        session.add(new_integration)
+                        session.execute(update_query, update_values)
+                        logger.info(f"Updated existing Calendly integration for user {user_id}")
+                    else:
+                        # Create new integration using raw SQL to avoid ORM issues with missing columns
+                        insert_values = {
+                            "platform": "calendly",
+                            "auth_type": str(IntegrationAuthType.API_KEY.value),
+                            "account_name": account_name,
+                            "account_id": account_id,
+                            "extra_data": json.dumps({
+                                "api_key": calendly_api_key,
+                                "user_data": {"name": account_name, "id": account_id}
+                            }),
+                            "last_sync": now,
+                            "status": str(IntegrationStatus.CONNECTED.value),
+                            "created_at": now,
+                            "updated_at": now
+                        }
+                        
+                        # Include user_id in insert if the column exists
+                        if has_user_id_column:
+                            insert_values["user_id"] = user_id
+                            insert_query = text(
+                                "INSERT INTO integrations (platform, auth_type, account_name, account_id, extra_data, "
+                                "last_sync, status, created_at, updated_at, user_id) "
+                                "VALUES (:platform, :auth_type, :account_name, :account_id, :extra_data, "
+                                ":last_sync, :status, :created_at, :updated_at, :user_id)"
+                            )
+                        else:
+                            insert_query = text(
+                                "INSERT INTO integrations (platform, auth_type, account_name, account_id, extra_data, "
+                                "last_sync, status, created_at, updated_at) "
+                                "VALUES (:platform, :auth_type, :account_name, :account_id, :extra_data, "
+                                ":last_sync, :status, :created_at, :updated_at)"
+                            )
+                        
+                        session.execute(insert_query, insert_values)
                         logger.info(f"Created new Calendly integration for user {user_id}")
                     
                     # Commit the transaction
