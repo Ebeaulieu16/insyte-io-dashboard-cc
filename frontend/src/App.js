@@ -48,6 +48,7 @@ import routes from "routes";
 // Vision UI Dashboard React contexts
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
 import { AuthProvider } from "context/auth";
+import { IntegrationProvider, useIntegration } from "context/IntegrationContext";
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -59,13 +60,27 @@ import ProtectedRoute from "components/ProtectedRoute";
 import Login from "layouts/authentication/login";
 import Register from "layouts/authentication/register";
 
+// Route change handler component to refresh integrations on navigation
+function RouteChangeHandler() {
+  const { pathname } = useLocation();
+  const { refreshIntegrations } = useIntegration();
+  
+  // Refresh integrations status when route changes
+  useEffect(() => {
+    console.log("Refreshing integrations after route change to:", pathname);
+    refreshIntegrations();
+  }, [pathname, refreshIntegrations]);
+  
+  return null; // This component doesn't render anything
+}
+
 export default function App() {
   const [controller, dispatch] = useVisionUIController();
   const { miniSidenav, direction, layout, openConfigurator, sidenavColor } = controller;
   const [onMouseEnter, setOnMouseEnter] = useState(false);
   const [rtlCache, setRtlCache] = useState(null);
   const { pathname } = useLocation();
-
+  
   // Cache for the rtl
   useMemo(() => {
     const cacheRtl = createCache({
@@ -162,9 +177,59 @@ export default function App() {
 
   return (
     <AuthProvider>
-      {direction === "rtl" ? (
-        <CacheProvider value={rtlCache}>
-          <ThemeProvider theme={themeRTL}>
+      <IntegrationProvider>
+        {/* Route change handler to refresh integrations on navigation */}
+        <RouteChangeHandler />
+        
+        {direction === "rtl" ? (
+          <CacheProvider value={rtlCache}>
+            <ThemeProvider theme={themeRTL}>
+              <CssBaseline />
+              {layout === "dashboard" && (
+                <>
+                  <Sidenav
+                    color={sidenavColor}
+                    brand=""
+                    brandName="Insyte Dashboard"
+                    routes={routes}
+                    onMouseEnter={handleOnMouseEnter}
+                    onMouseLeave={handleOnMouseLeave}
+                  />
+                  <Configurator />
+                  {configsButton}
+                </>
+              )}
+              {layout === "vr" && <Configurator />}
+              <Switch>
+                {/* Auth routes */}
+                <Route exact path="/authentication/login" component={Login} />
+                <Route exact path="/authentication/register" component={Register} />
+                
+                {/* Protected routes */}
+                {getProtectedRoutes(appRoutes)}
+                
+                {/* Default redirect */}
+                <Route path="/authentication" render={() => <Redirect to="/authentication/login" />} />
+                <Route path="*" render={() => <Redirect to="/dashboard" />} />
+              </Switch>
+              
+              {/* Toast notifications container */}
+              <ToastContainer
+                position="top-right"
+                autoClose={5000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="dark"
+              />
+            </ThemeProvider>
+          </CacheProvider>
+        ) : (
+          <ThemeProvider theme={theme}>
             <CssBaseline />
             {layout === "dashboard" && (
               <>
@@ -208,53 +273,8 @@ export default function App() {
               theme="dark"
             />
           </ThemeProvider>
-        </CacheProvider>
-      ) : (
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          {layout === "dashboard" && (
-            <>
-              <Sidenav
-                color={sidenavColor}
-                brand=""
-                brandName="Insyte Dashboard"
-                routes={routes}
-                onMouseEnter={handleOnMouseEnter}
-                onMouseLeave={handleOnMouseLeave}
-              />
-              <Configurator />
-              {configsButton}
-            </>
-          )}
-          {layout === "vr" && <Configurator />}
-          <Switch>
-            {/* Auth routes */}
-            <Route exact path="/authentication/login" component={Login} />
-            <Route exact path="/authentication/register" component={Register} />
-            
-            {/* Protected routes */}
-            {getProtectedRoutes(appRoutes)}
-            
-            {/* Default redirect */}
-            <Route path="/authentication" render={() => <Redirect to="/authentication/login" />} />
-            <Route path="*" render={() => <Redirect to="/dashboard" />} />
-          </Switch>
-          
-          {/* Toast notifications container */}
-          <ToastContainer
-            position="top-right"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="dark"
-          />
-        </ThemeProvider>
-      )}
+        )}
+      </IntegrationProvider>
     </AuthProvider>
   );
 }

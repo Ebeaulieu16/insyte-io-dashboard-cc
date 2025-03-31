@@ -43,12 +43,18 @@ import { Link } from "react-router-dom";
 // API utility
 import api, { isBackendAvailable } from "utils/api";
 
+// Integration context
+import { useIntegration } from "context/IntegrationContext";
+
 function Integrations() {
   const { gradients } = colors;
   const { cardContent } = gradients;
   const location = useLocation();
+  
+  // Get integration status from context
+  const { integrations: contextIntegrations, loading: contextLoading, refreshIntegrations } = useIntegration();
 
-  // State for integrations status
+  // Local state for UI
   const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ show: false, message: "", severity: "info" });
@@ -58,6 +64,28 @@ function Integrations() {
   const [youtubeChannelId, setYoutubeChannelId] = useState("");
   const [stripeApiKey, setStripeApiKey] = useState("");
   const [calendlyApiKey, setCalendlyApiKey] = useState("");
+
+  // When the integration context updates, update our local state
+  useEffect(() => {
+    if (contextIntegrations.length > 0) {
+      // Map API response to integrations with UI properties
+      const formattedIntegrations = contextIntegrations.map(integration => ({
+        id: integration.platform,
+        name: getPlatformName(integration.platform),
+        description: getPlatformDescription(integration.platform),
+        connected: integration.status === "connected" || integration.is_connected === true,
+        connectedSince: integration.last_sync,
+        accountName: integration.account_name,
+        icon: getPlatformIcon(integration.platform),
+        status: (integration.status === "connected" || integration.is_connected === true) ? "Active" : "Not Connected",
+        color: (integration.status === "connected" || integration.is_connected === true) ? "success" : "error",
+        scopes: getPlatformScopes(integration.platform)
+      }));
+      
+      setIntegrations(formattedIntegrations);
+      setLoading(contextLoading);
+    }
+  }, [contextIntegrations, contextLoading]);
 
   // Display URL parameters as alerts (for OAuth redirects)
   useEffect(() => {
@@ -69,6 +97,9 @@ function Integrations() {
         message: `Successfully connected ${params.get("platform")}!`,
         severity: "success"
       });
+      
+      // Refresh the integrations list when we get a success parameter
+      refreshIntegrations();
     } else if (params.has("error") && params.get("platform")) {
       setAlert({
         show: true,
@@ -82,159 +113,6 @@ function Integrations() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [location]);
-
-  // Fetch integration status
-  useEffect(() => {
-    const fetchIntegrationStatus = async () => {
-      try {
-        setLoading(true);
-        console.log("Fetching integration status...");
-        
-        // Default integrations data in case of errors
-        const defaultIntegrations = [
-          {
-            id: "youtube",
-            name: "YouTube",
-            description: "Connect your channel to track video performance metrics",
-            connected: false,
-            connectedSince: null,
-            accountName: null,
-            icon: getPlatformIcon("youtube"),
-            status: "Not Connected",
-            color: "error",
-            scopes: getPlatformScopes("youtube")
-          },
-          {
-            id: "stripe",
-            name: "Stripe",
-            description: "Connect your payment account to track revenue and transactions",
-            connected: false,
-            connectedSince: null,
-            accountName: null,
-            icon: getPlatformIcon("stripe"),
-            status: "Not Connected",
-            color: "error",
-            scopes: getPlatformScopes("stripe")
-          },
-          {
-            id: "calendly",
-            name: "Calendly",
-            description: "Schedule and track calls and appointments automatically",
-            connected: false,
-            connectedSince: null,
-            accountName: null,
-            icon: getPlatformIcon("calendly"),
-            status: "Not Connected",
-            color: "error",
-            scopes: getPlatformScopes("calendly")
-          },
-          {
-            id: "calcom",
-            name: "Cal.com",
-            description: "Open-source alternative for scheduling meetings",
-            connected: false,
-            connectedSince: null,
-            accountName: null,
-            icon: getPlatformIcon("calcom"),
-            status: "Not Connected",
-            color: "error",
-            scopes: getPlatformScopes("calcom")
-          }
-        ];
-        
-        let integrationsList = defaultIntegrations;
-        
-        try {
-          const response = await api.get("/api/integrations/status");
-          console.log("API Response:", response.data);
-          
-          // Only override defaults if we got valid data from the API
-          if (response.data && response.data.integrations && Array.isArray(response.data.integrations)) {
-            // Map API response to integrations with UI properties
-            integrationsList = response.data.integrations.map(integration => ({
-              id: integration.platform,
-              name: getPlatformName(integration.platform),
-              description: getPlatformDescription(integration.platform),
-              connected: integration.status === "connected",
-              connectedSince: integration.last_sync,
-              accountName: integration.account_name,
-              icon: getPlatformIcon(integration.platform),
-              status: integration.status === "connected" ? "Active" : "Not Connected",
-              color: integration.status === "connected" ? "success" : "error",
-              scopes: getPlatformScopes(integration.platform)
-            }));
-          } else {
-            console.warn("API response missing integrations array, using defaults");
-            setAlert({
-              show: true,
-              message: "Using default integration options - API response format invalid",
-              severity: "warning"
-            });
-          }
-        } catch (apiError) {
-          console.error("API error:", apiError);
-          setAlert({
-            show: true,
-            message: "Unable to fetch integration status. Showing default options.",
-            severity: "warning"
-          });
-          setIsDemo(true);
-        }
-        
-        console.log("Processed integrations list:", integrationsList);
-        setIntegrations(integrationsList); // Always set integrations, even in error case
-      } catch (error) {
-        console.error("Unexpected error:", error);
-        // Even in case of a serious error, set default integrations
-        setIntegrations([
-          {
-            id: "youtube",
-            name: "YouTube",
-            description: "Connect your channel to track video performance metrics",
-            connected: false,
-            icon: getPlatformIcon("youtube"),
-            status: "Not Connected",
-            color: "error",
-            scopes: getPlatformScopes("youtube")
-          },
-          {
-            id: "stripe",
-            name: "Stripe", 
-            description: "Connect your payment account to track revenue and transactions",
-            connected: false,
-            icon: getPlatformIcon("stripe"),
-            status: "Not Connected",
-            color: "error",
-            scopes: getPlatformScopes("stripe")
-          },
-          {
-            id: "calendly",
-            name: "Calendly",
-            description: "Schedule and track calls and appointments automatically", 
-            connected: false,
-            icon: getPlatformIcon("calendly"),
-            status: "Not Connected",
-            color: "error",
-            scopes: getPlatformScopes("calendly")
-          },
-          {
-            id: "calcom",
-            name: "Cal.com",
-            description: "Open-source alternative for scheduling meetings",
-            connected: false,
-            icon: getPlatformIcon("calcom"),
-            status: "Not Connected",
-            color: "error",
-            scopes: getPlatformScopes("calcom")
-          }
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchIntegrationStatus();
-  }, []);
 
   // Helper functions for platform metadata
   const getPlatformName = (platform) => {
@@ -318,6 +196,9 @@ function Integrations() {
         message: `Successfully disconnected ${getPlatformName(platform)}`,
         severity: "success"
       });
+      
+      // Refresh global integration state
+      refreshIntegrations();
     } catch (error) {
       console.error(`Failed to disconnect ${platform}:`, error);
       setAlert({
@@ -335,10 +216,11 @@ function Integrations() {
 
   const handleYoutubeApiKeySubmit = async (e) => {
     e.preventDefault();
+    
     if (!youtubeApiKey.trim()) {
       setAlert({
         show: true,
-        message: "Please enter a valid YouTube API key",
+        message: "Please enter your YouTube API key",
         severity: "error"
       });
       return;
@@ -386,6 +268,9 @@ function Integrations() {
           message: `Successfully connected YouTube channel: ${response.data.account_name}`,
           severity: "success"
         });
+        
+        // Refresh global integration state
+        refreshIntegrations();
       }
     } catch (error) {
       console.error("Error submitting YouTube API key:", error);
@@ -440,6 +325,9 @@ function Integrations() {
       
       // Clear input
       setStripeApiKey("");
+      
+      // Refresh global integration state
+      refreshIntegrations();
     } catch (error) {
       console.error("Failed to connect Stripe:", error);
       setAlert({
@@ -491,6 +379,9 @@ function Integrations() {
       
       // Clear input
       setCalendlyApiKey("");
+      
+      // Refresh global integration state
+      refreshIntegrations();
     } catch (error) {
       console.error("Failed to connect Calendly:", error);
       setAlert({
@@ -542,6 +433,9 @@ function Integrations() {
       
       // Clear input
       setCalcomApiKey("");
+      
+      // Refresh global integration state
+      refreshIntegrations();
     } catch (error) {
       console.error("Failed to connect Cal.com:", error);
       setAlert({
