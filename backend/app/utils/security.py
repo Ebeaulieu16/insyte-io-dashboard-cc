@@ -73,6 +73,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         
         if user_id is None:
             raise credentials_exception
+            
+        # Convert string user_id to integer - this is the key fix!
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            logger.error(f"Invalid user_id format in token: {user_id}")
+            raise credentials_exception
     
     except JWTError:
         logger.error("JWT error", exc_info=True)
