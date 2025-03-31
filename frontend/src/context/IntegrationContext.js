@@ -42,16 +42,42 @@ export const IntegrationProvider = ({ children }) => {
         
         if (response.data && response.data.integrations) {
           setIntegrations(response.data.integrations);
+        } else {
+          // Fallback for when the API returns a successful response but with no integrations
+          console.warn('API returned success but no integrations data');
+          setIntegrations([
+            { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
+            { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
+            { platform: "calendly", status: "disconnected", account_name: null, last_sync: null },
+            { platform: "calcom", status: "disconnected", account_name: null, last_sync: null }
+          ]);
         }
       } catch (error) {
         console.error('Failed to fetch integration status:', error);
-        setIntegrations([]);
+        // Set default empty integrations on error
+        setIntegrations([
+          { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
+          { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
+          { platform: "calendly", status: "disconnected", account_name: null, last_sync: null },
+          { platform: "calcom", status: "disconnected", account_name: null, last_sync: null }
+        ]);
       } finally {
-        setLoading(false);
+        // Always ensure loading is set to false after some delay
+        setTimeout(() => {
+          setLoading(false);
+        }, 500); // Small delay to allow UI to update properly
       }
     };
 
+    // Set a timeout to ensure we don't get stuck in loading state
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000); // 5 seconds max loading time
+    
     fetchIntegrationStatus();
+    
+    // Clear the timeout when component unmounts or refresh is triggered again
+    return () => clearTimeout(timeout);
   }, [refreshTrigger]);
 
   // Provide context value

@@ -64,12 +64,28 @@ import Register from "layouts/authentication/register";
 function RouteChangeHandler() {
   const { pathname } = useLocation();
   const { refreshIntegrations } = useIntegration();
+  const [lastRefreshed, setLastRefreshed] = useState('');
   
-  // Refresh integrations status when route changes
+  // Refresh integrations status when route changes, but prevent excessive refreshes
   useEffect(() => {
-    console.log("Refreshing integrations after route change to:", pathname);
-    refreshIntegrations();
-  }, [pathname, refreshIntegrations]);
+    // Skip initial render
+    if (!lastRefreshed) {
+      setLastRefreshed(pathname);
+      return;
+    }
+    
+    // Only refresh if navigating to/from the integrations page
+    const isIntegrationsRoute = pathname === '/integrations';
+    const wasIntegrationsRoute = lastRefreshed === '/integrations';
+    
+    if (isIntegrationsRoute || wasIntegrationsRoute) {
+      console.log("Refreshing integrations after route change to:", pathname);
+      refreshIntegrations();
+    }
+    
+    // Update last refreshed path
+    setLastRefreshed(pathname);
+  }, [pathname, refreshIntegrations, lastRefreshed]);
   
   return null; // This component doesn't render anything
 }

@@ -67,7 +67,10 @@ function Integrations() {
 
   // When the integration context updates, update our local state
   useEffect(() => {
-    if (contextIntegrations.length > 0) {
+    // Always update the loading state, even if no integrations are available
+    setLoading(contextLoading);
+    
+    if (contextIntegrations && contextIntegrations.length > 0) {
       // Map API response to integrations with UI properties
       const formattedIntegrations = contextIntegrations.map(integration => ({
         id: integration.platform,
@@ -83,7 +86,58 @@ function Integrations() {
       }));
       
       setIntegrations(formattedIntegrations);
-      setLoading(contextLoading);
+    } else if (!contextLoading) {
+      // If integrations are empty but loading is complete, set default integrations
+      setIntegrations([
+        {
+          id: "youtube",
+          name: "YouTube",
+          description: getPlatformDescription("youtube"),
+          connected: false,
+          connectedSince: null,
+          accountName: null,
+          icon: getPlatformIcon("youtube"),
+          status: "Not Connected",
+          color: "error",
+          scopes: getPlatformScopes("youtube")
+        },
+        {
+          id: "stripe",
+          name: "Stripe",
+          description: getPlatformDescription("stripe"),
+          connected: false,
+          connectedSince: null,
+          accountName: null,
+          icon: getPlatformIcon("stripe"),
+          status: "Not Connected",
+          color: "error",
+          scopes: getPlatformScopes("stripe")
+        },
+        {
+          id: "calendly",
+          name: "Calendly",
+          description: getPlatformDescription("calendly"),
+          connected: false,
+          connectedSince: null,
+          accountName: null,
+          icon: getPlatformIcon("calendly"),
+          status: "Not Connected",
+          color: "error",
+          scopes: getPlatformScopes("calendly")
+        },
+        {
+          id: "calcom",
+          name: "Cal.com",
+          description: getPlatformDescription("calcom"),
+          connected: false,
+          connectedSince: null,
+          accountName: null,
+          icon: getPlatformIcon("calcom"),
+          status: "Not Connected",
+          color: "error",
+          scopes: getPlatformScopes("calcom")
+        }
+      ]);
     }
   }, [contextIntegrations, contextLoading]);
 
