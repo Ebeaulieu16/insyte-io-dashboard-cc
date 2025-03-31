@@ -742,14 +742,15 @@ def connect_calcom_api_key(
                         'has_account_name': 'account_name' in existing_columns,
                         'has_account_id': 'account_id' in existing_columns,
                         'has_extra_data': 'extra_data' in existing_columns,
-                        'has_last_sync': 'last_sync' in existing_columns
+                        'has_last_sync': 'last_sync' in existing_columns,
+                        'has_is_connected': 'is_connected' in existing_columns
                     }
                     
                     logger.info(f"Table info: {table_info}")
                 except Exception as e:
                     logger.warning(f"Could not get table schema: {str(e)}")
                     session.rollback()
-                    # Assume minimal columns for maximum compatibility
+                    # Assume all necessary columns exist for maximum compatibility
                     table_info = {
                         'has_user_id': False,
                         'has_auth_type': False,
@@ -758,7 +759,8 @@ def connect_calcom_api_key(
                         'has_account_name': True,
                         'has_account_id': True,
                         'has_extra_data': False,
-                        'has_last_sync': False
+                        'has_last_sync': False,
+                        'has_is_connected': True  # Assuming is_connected is required
                     }
                 
                 # Check if the table has any rows
@@ -781,6 +783,7 @@ def connect_calcom_api_key(
                                 platform VARCHAR(50),
                                 account_name VARCHAR(255),
                                 account_id VARCHAR(255),
+                                is_connected BOOLEAN NOT NULL DEFAULT TRUE,
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )
@@ -797,7 +800,8 @@ def connect_calcom_api_key(
                             'has_account_name': True,
                             'has_account_id': True,
                             'has_extra_data': False,
-                            'has_last_sync': False
+                            'has_last_sync': False,
+                            'has_is_connected': True
                         }
                     except Exception as e:
                         logger.warning(f"Could not create table: {str(e)}")
@@ -855,6 +859,10 @@ def connect_calcom_api_key(
                             update_parts.append("last_sync = :last_sync")
                             params["last_sync"] = now
                             
+                        if table_info.get('has_is_connected', False):
+                            update_parts.append("is_connected = :is_connected")
+                            params["is_connected"] = True
+
                         if table_info.get('has_extra_data', False):
                             update_parts.append("extra_data = :extra_data")
                             params["extra_data"] = json.dumps({
@@ -902,6 +910,11 @@ def connect_calcom_api_key(
                             value_names.append(":last_sync")
                             params["last_sync"] = now
                             
+                        if table_info.get('has_is_connected', False):
+                            column_names.append("is_connected")
+                            value_names.append(":is_connected")
+                            params["is_connected"] = True
+                            
                         if table_info.get('has_extra_data', False):
                             column_names.append("extra_data")
                             value_names.append(":extra_data")
@@ -909,6 +922,12 @@ def connect_calcom_api_key(
                                 "api_key": calcom_api_key,
                                 "user_data": {"name": account_name, "id": account_id}
                             })
+                        
+                        # Always include the required is_connected column even if not detected
+                        if "is_connected" not in column_names:
+                            column_names.append("is_connected")
+                            value_names.append(":is_connected")
+                            params["is_connected"] = True
                         
                         insert_query += ", ".join(column_names) + ") VALUES (" + ", ".join(value_names) + ")"
                         session.execute(text(insert_query), params)
@@ -1014,14 +1033,15 @@ def connect_youtube_api_key(
                         'has_account_name': 'account_name' in existing_columns,
                         'has_account_id': 'account_id' in existing_columns,
                         'has_extra_data': 'extra_data' in existing_columns,
-                        'has_last_sync': 'last_sync' in existing_columns
+                        'has_last_sync': 'last_sync' in existing_columns,
+                        'has_is_connected': 'is_connected' in existing_columns
                     }
                     
                     logger.info(f"Table info: {table_info}")
                 except Exception as e:
                     logger.warning(f"Could not get table schema: {str(e)}")
                     session.rollback()
-                    # Assume minimal columns for maximum compatibility
+                    # Assume all necessary columns exist for maximum compatibility
                     table_info = {
                         'has_user_id': False,
                         'has_auth_type': False,
@@ -1030,7 +1050,8 @@ def connect_youtube_api_key(
                         'has_account_name': True,
                         'has_account_id': True,
                         'has_extra_data': False,
-                        'has_last_sync': False
+                        'has_last_sync': False,
+                        'has_is_connected': True  # Assuming is_connected is required
                     }
                 
                 # Check if the table has any rows
@@ -1053,6 +1074,7 @@ def connect_youtube_api_key(
                                 platform VARCHAR(50),
                                 account_name VARCHAR(255),
                                 account_id VARCHAR(255),
+                                is_connected BOOLEAN NOT NULL DEFAULT TRUE,
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )
@@ -1069,7 +1091,8 @@ def connect_youtube_api_key(
                             'has_account_name': True,
                             'has_account_id': True,
                             'has_extra_data': False,
-                            'has_last_sync': False
+                            'has_last_sync': False,
+                            'has_is_connected': True
                         }
                     except Exception as e:
                         logger.warning(f"Could not create table: {str(e)}")
@@ -1127,6 +1150,10 @@ def connect_youtube_api_key(
                             update_parts.append("last_sync = :last_sync")
                             params["last_sync"] = now
                             
+                        if table_info.get('has_is_connected', False):
+                            update_parts.append("is_connected = :is_connected")
+                            params["is_connected"] = True
+
                         if table_info.get('has_extra_data', False):
                             update_parts.append("extra_data = :extra_data")
                             params["extra_data"] = json.dumps({
@@ -1175,6 +1202,11 @@ def connect_youtube_api_key(
                             value_names.append(":last_sync")
                             params["last_sync"] = now
                             
+                        if table_info.get('has_is_connected', False):
+                            column_names.append("is_connected")
+                            value_names.append(":is_connected")
+                            params["is_connected"] = True
+                            
                         if table_info.get('has_extra_data', False):
                             column_names.append("extra_data")
                             value_names.append(":extra_data")
@@ -1183,6 +1215,12 @@ def connect_youtube_api_key(
                                 "channel_id": channel_id,
                                 "channel_info": {"title": channel_name}
                             })
+                        
+                        # Always include the required is_connected column even if not detected
+                        if "is_connected" not in column_names:
+                            column_names.append("is_connected")
+                            value_names.append(":is_connected")
+                            params["is_connected"] = True
                         
                         insert_query += ", ".join(column_names) + ") VALUES (" + ", ".join(value_names) + ")"
                         session.execute(text(insert_query), params)
@@ -1280,14 +1318,15 @@ def connect_stripe_api_key(
                         'has_account_name': 'account_name' in existing_columns,
                         'has_account_id': 'account_id' in existing_columns,
                         'has_extra_data': 'extra_data' in existing_columns,
-                        'has_last_sync': 'last_sync' in existing_columns
+                        'has_last_sync': 'last_sync' in existing_columns,
+                        'has_is_connected': 'is_connected' in existing_columns
                     }
                     
                     logger.info(f"Table info: {table_info}")
                 except Exception as e:
                     logger.warning(f"Could not get table schema: {str(e)}")
                     session.rollback()
-                    # Assume minimal columns for maximum compatibility
+                    # Assume all necessary columns exist for maximum compatibility
                     table_info = {
                         'has_user_id': False,
                         'has_auth_type': False,
@@ -1296,7 +1335,8 @@ def connect_stripe_api_key(
                         'has_account_name': True,
                         'has_account_id': True,
                         'has_extra_data': False,
-                        'has_last_sync': False
+                        'has_last_sync': False,
+                        'has_is_connected': True  # Assuming is_connected is required
                     }
                 
                 # Check if the table has any rows
@@ -1319,6 +1359,7 @@ def connect_stripe_api_key(
                                 platform VARCHAR(50),
                                 account_name VARCHAR(255),
                                 account_id VARCHAR(255),
+                                is_connected BOOLEAN NOT NULL DEFAULT TRUE,
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )
@@ -1335,7 +1376,8 @@ def connect_stripe_api_key(
                             'has_account_name': True,
                             'has_account_id': True,
                             'has_extra_data': False,
-                            'has_last_sync': False
+                            'has_last_sync': False,
+                            'has_is_connected': True
                         }
                     except Exception as e:
                         logger.warning(f"Could not create table: {str(e)}")
@@ -1393,6 +1435,10 @@ def connect_stripe_api_key(
                             update_parts.append("last_sync = :last_sync")
                             params["last_sync"] = now
                             
+                        if table_info.get('has_is_connected', False):
+                            update_parts.append("is_connected = :is_connected")
+                            params["is_connected"] = True
+
                         if table_info.get('has_extra_data', False):
                             update_parts.append("extra_data = :extra_data")
                             params["extra_data"] = json.dumps({
@@ -1440,6 +1486,11 @@ def connect_stripe_api_key(
                             value_names.append(":last_sync")
                             params["last_sync"] = now
                             
+                        if table_info.get('has_is_connected', False):
+                            column_names.append("is_connected")
+                            value_names.append(":is_connected")
+                            params["is_connected"] = True
+                            
                         if table_info.get('has_extra_data', False):
                             column_names.append("extra_data")
                             value_names.append(":extra_data")
@@ -1447,6 +1498,12 @@ def connect_stripe_api_key(
                                 "api_key": stripe_api_key,
                                 "account_data": {"name": account_name, "id": account_id}
                             })
+                        
+                        # Always include the required is_connected column even if not detected
+                        if "is_connected" not in column_names:
+                            column_names.append("is_connected")
+                            value_names.append(":is_connected")
+                            params["is_connected"] = True
                         
                         insert_query += ", ".join(column_names) + ") VALUES (" + ", ".join(value_names) + ")"
                         session.execute(text(insert_query), params)
@@ -1544,14 +1601,15 @@ def connect_calendly_api_key(
                         'has_account_name': 'account_name' in existing_columns,
                         'has_account_id': 'account_id' in existing_columns,
                         'has_extra_data': 'extra_data' in existing_columns,
-                        'has_last_sync': 'last_sync' in existing_columns
+                        'has_last_sync': 'last_sync' in existing_columns,
+                        'has_is_connected': 'is_connected' in existing_columns
                     }
                     
                     logger.info(f"Table info: {table_info}")
                 except Exception as e:
                     logger.warning(f"Could not get table schema: {str(e)}")
                     session.rollback()
-                    # Assume minimal columns for maximum compatibility
+                    # Assume all necessary columns exist for maximum compatibility
                     table_info = {
                         'has_user_id': False,
                         'has_auth_type': False,
@@ -1560,7 +1618,8 @@ def connect_calendly_api_key(
                         'has_account_name': True,
                         'has_account_id': True,
                         'has_extra_data': False,
-                        'has_last_sync': False
+                        'has_last_sync': False,
+                        'has_is_connected': True  # Assuming is_connected is required
                     }
                 
                 # Check if the table has any rows
@@ -1583,6 +1642,7 @@ def connect_calendly_api_key(
                                 platform VARCHAR(50),
                                 account_name VARCHAR(255),
                                 account_id VARCHAR(255),
+                                is_connected BOOLEAN NOT NULL DEFAULT TRUE,
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )
@@ -1599,7 +1659,8 @@ def connect_calendly_api_key(
                             'has_account_name': True,
                             'has_account_id': True,
                             'has_extra_data': False,
-                            'has_last_sync': False
+                            'has_last_sync': False,
+                            'has_is_connected': True
                         }
                     except Exception as e:
                         logger.warning(f"Could not create table: {str(e)}")
@@ -1657,6 +1718,10 @@ def connect_calendly_api_key(
                             update_parts.append("last_sync = :last_sync")
                             params["last_sync"] = now
                             
+                        if table_info.get('has_is_connected', False):
+                            update_parts.append("is_connected = :is_connected")
+                            params["is_connected"] = True
+
                         if table_info.get('has_extra_data', False):
                             update_parts.append("extra_data = :extra_data")
                             params["extra_data"] = json.dumps({
@@ -1704,6 +1769,11 @@ def connect_calendly_api_key(
                             value_names.append(":last_sync")
                             params["last_sync"] = now
                             
+                        if table_info.get('has_is_connected', False):
+                            column_names.append("is_connected")
+                            value_names.append(":is_connected")
+                            params["is_connected"] = True
+                            
                         if table_info.get('has_extra_data', False):
                             column_names.append("extra_data")
                             value_names.append(":extra_data")
@@ -1711,6 +1781,12 @@ def connect_calendly_api_key(
                                 "api_key": calendly_api_key,
                                 "user_data": {"name": account_name, "id": account_id}
                             })
+                        
+                        # Always include the required is_connected column even if not detected
+                        if "is_connected" not in column_names:
+                            column_names.append("is_connected")
+                            value_names.append(":is_connected")
+                            params["is_connected"] = True
                         
                         insert_query += ", ".join(column_names) + ") VALUES (" + ", ".join(value_names) + ")"
                         session.execute(text(insert_query), params)
