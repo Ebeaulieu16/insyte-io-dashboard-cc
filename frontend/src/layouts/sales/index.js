@@ -130,9 +130,12 @@ function Sales() {
   
   // Fetch data when integration status changes
   useEffect(() => {
+    console.log("Integration connection status changed:", isAnyIntegrationConnected);
     if (isAnyIntegrationConnected) {
+      console.log("Fetching real sales data from connected integrations");
       fetchSalesData();
     } else {
+      console.log("No integrations connected, using demo data");
       setLoading(false);
     }
   }, [isAnyIntegrationConnected]);
@@ -145,7 +148,7 @@ function Sales() {
         {!isAnyIntegrationConnected && (
           <VuiBox mb={3} p={2} borderRadius="lg" bgColor="info">
             <VuiTypography variant="button" color="white" fontWeight="medium">
-              Demo Mode - No integrations connected. Showing sample sales data.
+              Demo Mode - No integrations connected. Showing sample sales data. Connect integrations in the Integrations page.
             </VuiTypography>
           </VuiBox>
         )}

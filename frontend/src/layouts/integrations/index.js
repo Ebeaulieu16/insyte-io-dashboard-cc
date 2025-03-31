@@ -52,7 +52,13 @@ function Integrations() {
   const location = useLocation();
   
   // Get integration status from context
-  const { integrations: contextIntegrations, loading: contextLoading, refreshIntegrations } = useIntegration();
+  const { 
+    integrations: contextIntegrations, 
+    loading: contextLoading, 
+    refreshIntegrations,
+    addLocalIntegration,
+    removeLocalIntegration
+  } = useIntegration();
 
   // Local state for UI
   const [integrations, setIntegrations] = useState([]);
@@ -269,6 +275,9 @@ function Integrations() {
     try {
       await api.delete(`/api/integrations/${platform}`);
       
+      // Remove from local cache
+      removeLocalIntegration(platform);
+      
       // Update the integration status in the UI
       setIntegrations(prev => 
         prev.map(integration => 
@@ -335,13 +344,17 @@ function Integrations() {
       console.log("YouTube API key submitted:", response.data);
       
       if (response.data && response.data.status === "success") {
+        // First, update our local cache with the new integration
+        const accountName = response.data.account_name || "YouTube Channel";
+        addLocalIntegration("youtube", accountName);
+        
         // Update the UI to reflect the new integration
         const updatedIntegrations = integrations.map(integration => {
           if (integration.id === "youtube") {
             return {
               ...integration,
               connected: true,
-              accountName: response.data.account_name,
+              accountName: accountName,
               status: "Active",
               color: "success"
             };
@@ -354,7 +367,7 @@ function Integrations() {
         setYoutubeChannelId("");
         setAlert({
           show: true,
-          message: `Successfully connected YouTube channel: ${response.data.account_name}`,
+          message: `Successfully connected YouTube channel: ${accountName}`,
           severity: "success"
         });
         
@@ -393,6 +406,10 @@ function Integrations() {
         api_key: stripeApiKey
       });
       
+      // First, update our local cache with the new integration
+      const accountName = response.data.account_name || "Stripe Account";
+      addLocalIntegration("stripe", accountName);
+      
       // Update UI with new integration status
       setIntegrations(prev => 
         prev.map(integration => 
@@ -402,7 +419,7 @@ function Integrations() {
                 connected: true, 
                 status: "Active", 
                 color: "success",
-                accountName: response.data.account_name || "Stripe Account"
+                accountName: accountName
               }
             : integration
         )
@@ -449,6 +466,10 @@ function Integrations() {
         api_key: calendlyApiKey
       });
       
+      // First, update our local cache with the new integration
+      const accountName = response.data.account_name || "Calendly Account";
+      addLocalIntegration("calendly", accountName);
+      
       // Update UI with new integration status
       setIntegrations(prev => 
         prev.map(integration => 
@@ -458,7 +479,7 @@ function Integrations() {
                 connected: true, 
                 status: "Active", 
                 color: "success",
-                accountName: response.data.account_name || "Calendly Account"
+                accountName: accountName
               }
             : integration
         )
@@ -505,6 +526,10 @@ function Integrations() {
         api_key: calcomApiKey
       });
       
+      // First, update our local cache with the new integration
+      const accountName = response.data.account_name || "Cal.com Account";
+      addLocalIntegration("calcom", accountName);
+      
       // Update UI with new integration status
       setIntegrations(prev => 
         prev.map(integration => 
@@ -514,7 +539,7 @@ function Integrations() {
                 connected: true, 
                 status: "Active", 
                 color: "success",
-                accountName: response.data.account_name || "Cal.com Account"
+                accountName: accountName
               }
             : integration
         )
