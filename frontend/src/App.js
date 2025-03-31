@@ -47,8 +47,8 @@ import routes from "routes";
 
 // Vision UI Dashboard React contexts
 import { useVisionUIController, setMiniSidenav, setOpenConfigurator } from "context";
-import { AuthProvider } from "context/auth";
-import { IntegrationProvider, useIntegration } from "context/IntegrationContext";
+import { AuthProvider } from "./context/auth";
+import { IntegrationProvider, useIntegration } from "./context/IntegrationContext";
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';

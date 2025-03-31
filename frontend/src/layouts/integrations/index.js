@@ -44,7 +44,7 @@ import { Link } from "react-router-dom";
 import api, { isBackendAvailable } from "utils/api";
 
 // Integration context
-import { useIntegration } from "context/IntegrationContext";
+import { useIntegration } from "../../context/IntegrationContext";
 
 function Integrations() {
   const { gradients } = colors;
