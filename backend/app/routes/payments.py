@@ -24,8 +24,8 @@ except (ImportError, AttributeError):
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize the Stripe client with the API key
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
+# Set default API key from environment (will be overridden by user-submitted key when available)
+DEFAULT_STRIPE_API_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 router = APIRouter(
@@ -60,6 +60,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Webhook secret is not configured"
         )
+    
+    # Initialize Stripe with the default API key
+    stripe.api_key = DEFAULT_STRIPE_API_KEY
     
     # Verify the webhook signature
     try:
@@ -97,6 +100,11 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             if integration:
                 dashboard_user_id = integration.user_id
                 logger.info(f"Found integration for dashboard user: {dashboard_user_id}")
+                
+                # If there's an API key stored in extra_data, use it
+                if integration.extra_data and 'api_key' in integration.extra_data:
+                    stripe.api_key = integration.extra_data['api_key']
+                    logger.info(f"Using API key from integration for account: {account_id}")
             else:
                 logger.warning(f"No integration found for account: {account_id}")
         except Exception as e:
@@ -245,6 +253,22 @@ async def get_payments(db: Session = Depends(get_db)):
         dict: A list of payment records
     """
     try:
+        # Look up the active Stripe integration to use its API key
+        if INTEGRATION_MODEL_UPDATED:
+            integration = db.query(Integration).filter(
+                Integration.platform == "stripe",
+                Integration.status == IntegrationStatus.CONNECTED
+            ).first()
+            
+            if integration and integration.extra_data and 'api_key' in integration.extra_data:
+                # Use the API key from the integration
+                stripe.api_key = integration.extra_data['api_key']
+                logger.info("Using API key from active integration for payments API")
+            else:
+                # Fall back to default API key
+                stripe.api_key = DEFAULT_STRIPE_API_KEY
+                logger.info("No active integration found, using default API key")
+        
         payments = db.query(Payment).order_by(Payment.timestamp.desc()).all()
         
         result = []
