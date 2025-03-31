@@ -13,7 +13,7 @@ import random
 import logging
 
 from app.database import get_db
-from app.models.integrations import Integration
+from app.models.integration import Integration
 
 # Set up logging
 logger = logging.getLogger(__name__)
