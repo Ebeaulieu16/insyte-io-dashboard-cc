@@ -615,8 +615,8 @@ def connect_calcom_api_key(
         JSON response with connection status
     """
     # Use the authenticated user's ID if available, otherwise default to 1 for demo
-    # IMPORTANT: Handle the user ID as a string due to database type mismatch
-    user_id = current_user.id if current_user else "1"  # Changed to string "1" to match VARCHAR in database
+    # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
+    user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
     
     logger.info(f"Connecting Cal.com via API key for user {user_id}")
     
@@ -696,8 +696,8 @@ def connect_youtube_api_key(
         JSON response with connection status
     """
     # Use the authenticated user's ID if available, otherwise default to 1 for demo
-    # IMPORTANT: Handle the user ID as a string due to database type mismatch
-    user_id = current_user.id if current_user else "1"  # Changed to string "1" to match VARCHAR in database
+    # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
+    user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
     
     logger.info(f"Connecting YouTube via API key for user {user_id}")
     
@@ -787,8 +787,8 @@ def connect_stripe_api_key(
         JSON response with connection status
     """
     # Use the authenticated user's ID if available, otherwise default to 1 for demo
-    # IMPORTANT: Handle the user ID as a string due to database type mismatch
-    user_id = current_user.id if current_user else "1"  # Changed to string "1" to match VARCHAR in database
+    # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
+    user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
     
     logger.info(f"Connecting Stripe via API key for user {user_id}")
     
@@ -868,8 +868,8 @@ def connect_calendly_api_key(
         JSON response with connection status
     """
     # Use the authenticated user's ID if available, otherwise default to 1 for demo
-    # IMPORTANT: Handle the user ID as a string due to database type mismatch
-    user_id = current_user.id if current_user else "1"  # Changed to string "1" to match VARCHAR in database
+    # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
+    user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
     
     logger.info(f"Connecting Calendly via API key for user {user_id}")
     
