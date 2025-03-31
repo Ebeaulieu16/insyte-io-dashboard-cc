@@ -470,37 +470,71 @@ async def get_integration_status(
         from sqlalchemy.sql import text
         
         with SessionLocal() as session:
-            # Check if user_id column exists using raw SQL
-            has_user_id_column = True
+            # First, check what columns actually exist in the integrations table
+            table_info = {}
             try:
-                # This query checks if user_id column exists in integrations table
-                session.execute(text("SELECT user_id FROM integrations LIMIT 0"))
-            except Exception as column_check_error:
-                logger.warning(f"user_id column doesn't exist yet: {str(column_check_error)}")
-                has_user_id_column = False
+                # Get column information
+                columns_result = session.execute(text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations'"
+                ))
+                existing_columns = [row[0] for row in columns_result]
+                logger.info(f"Existing columns in integrations table: {existing_columns}")
+                
+                # Store which columns exist
+                table_info = {
+                    'has_user_id': 'user_id' in existing_columns,
+                    'has_status': 'status' in existing_columns,
+                    'has_platform': 'platform' in existing_columns,
+                    'has_account_name': 'account_name' in existing_columns,
+                    'has_last_sync': 'last_sync' in existing_columns
+                }
+                
+                logger.info(f"Table info: {table_info}")
+            except Exception as e:
+                logger.warning(f"Could not get table schema: {str(e)}")
                 session.rollback()
+                # Assume minimal columns for maximum compatibility
+                table_info = {
+                    'has_user_id': False,
+                    'has_status': False,
+                    'has_platform': True,
+                    'has_account_name': True,
+                    'has_last_sync': False
+                }
             
             try:
-                # Fetch integrations with raw SQL based on whether user_id column exists
-                if has_user_id_column:
-                    # If user_id column exists, filter by user_id
-                    result = session.execute(
-                        text("SELECT id, platform, status, account_name, last_sync FROM integrations WHERE user_id = :user_id"),
-                        {"user_id": user_id}
-                    )
+                # Build a query based on the columns that exist
+                select_columns = ["id", "platform"]
+                if table_info.get('has_status', False):
+                    select_columns.append("status")
+                if table_info.get('has_account_name', False):
+                    select_columns.append("account_name")
+                if table_info.get('has_last_sync', False):
+                    select_columns.append("last_sync")
+                
+                # Construct the query
+                query = f"SELECT {', '.join(select_columns)} FROM integrations"
+                
+                # Add WHERE clause if user_id exists and we have a user_id
+                if table_info.get('has_user_id', False):
+                    query += " WHERE user_id = :user_id"
+                    result = session.execute(text(query), {"user_id": user_id})
+                    logger.info(f"Querying integrations with user_id filter for user {user_id}")
                 else:
-                    # If user_id column doesn't exist, get all integrations
-                    result = session.execute(
-                        text("SELECT id, platform, status, account_name, last_sync FROM integrations")
-                    )
+                    # Just get all integrations if we can't filter by user
+                    result = session.execute(text(query))
+                    logger.info("Querying all integrations (no user_id filter)")
                 
                 # Process results
                 rows = result.fetchall()
                 for row in rows:
-                    integration_data = dict(zip(result.keys(), row))
+                    # Create dictionary from row - but only with fields we know exist
+                    integration_data = {}
+                    for i, col in enumerate(select_columns):
+                        integration_data[col] = row[i]
                     db_integrations.append(integration_data)
                 
-                logger.info(f"Retrieved {len(db_integrations)} integrations using raw SQL")
+                logger.info(f"Retrieved {len(db_integrations)} integrations")
             except Exception as db_error:
                 logger.error(f"Database error fetching integrations: {str(db_error)}")
                 session.rollback()
@@ -517,16 +551,23 @@ async def get_integration_status(
             try:
                 platform = integration.get('platform')
                 if platform in status_dict:
-                    status_value = integration.get('status')
-                    if isinstance(status_value, (IntegrationStatus, enum.Enum)):
+                    # Get status - default to "connected" if status column doesn't exist
+                    status_value = integration.get('status', "connected")
+                    if isinstance(status_value, (enum.Enum)):
                         status_value = status_value.value
                     
-                    status_dict[platform] = {
+                    status_entry = {
                         "platform": platform,
-                        "status": status_value,
-                        "account_name": integration.get('account_name'),
-                        "last_sync": integration.get('last_sync')
+                        "status": status_value
                     }
+                    
+                    # Add optional fields if they exist
+                    if 'account_name' in integration:
+                        status_entry["account_name"] = integration.get('account_name')
+                    if 'last_sync' in integration:
+                        status_entry["last_sync"] = integration.get('last_sync')
+                    
+                    status_dict[platform] = status_entry
             except Exception as integration_error:
                 logger.error(f"Error processing integration {integration.get('id', 'unknown')}: {str(integration_error)}")
                 continue
@@ -995,14 +1036,12 @@ def connect_stripe_api_key(
         JSON response with connection status
     """
     # Use a new database session to ensure clean transactions
-    from app.database import SessionLocal, engine
-    import sqlalchemy as sa
+    from app.database import SessionLocal
     from sqlalchemy.sql import text
     
     try:
         # Use the authenticated user's ID if available, otherwise default to 1 for demo
-        # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
-        user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
+        user_id = current_user.id if current_user else 1
         
         logger.info(f"Connecting Stripe via API key for user {user_id}")
         
@@ -1023,122 +1062,196 @@ def connect_stripe_api_key(
             
             # Create a new session for database operations
             with SessionLocal() as session:
-                # Check if user_id column exists using raw SQL
-                has_user_id_column = True
+                # First, check what columns actually exist in the integrations table
+                table_info = {}
                 try:
-                    # This query checks if user_id column exists in integrations table
-                    session.execute(text("SELECT user_id FROM integrations LIMIT 0"))
-                except Exception as column_check_error:
-                    logger.warning(f"user_id column doesn't exist yet: {str(column_check_error)}")
-                    has_user_id_column = False
-                    session.rollback()  # Important: roll back the transaction
+                    # Get column information
+                    columns_result = session.execute(text(
+                        "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations'"
+                    ))
+                    existing_columns = [row[0] for row in columns_result]
+                    logger.info(f"Existing columns in integrations table: {existing_columns}")
+                    
+                    # Store which columns exist
+                    table_info = {
+                        'has_user_id': 'user_id' in existing_columns,
+                        'has_auth_type': 'auth_type' in existing_columns,
+                        'has_status': 'status' in existing_columns,
+                        'has_platform': 'platform' in existing_columns,
+                        'has_account_name': 'account_name' in existing_columns,
+                        'has_account_id': 'account_id' in existing_columns,
+                        'has_extra_data': 'extra_data' in existing_columns,
+                        'has_last_sync': 'last_sync' in existing_columns
+                    }
+                    
+                    logger.info(f"Table info: {table_info}")
+                except Exception as e:
+                    logger.warning(f"Could not get table schema: {str(e)}")
+                    session.rollback()
+                    # Assume minimal columns for maximum compatibility
+                    table_info = {
+                        'has_user_id': False,
+                        'has_auth_type': False,
+                        'has_status': False,
+                        'has_platform': True,
+                        'has_account_name': True,
+                        'has_account_id': True,
+                        'has_extra_data': False,
+                        'has_last_sync': False
+                    }
                 
-                # Check if this integration already exists for the user using raw SQL to avoid ORM issues
+                # Check if the table has any rows
+                try:
+                    count_result = session.execute(text("SELECT COUNT(*) FROM integrations"))
+                    row_count = count_result.scalar()
+                    logger.info(f"integrations table has {row_count} rows")
+                except Exception as e:
+                    logger.warning(f"Error counting rows: {str(e)}")
+                    session.rollback()
+                    row_count = 0
+                
+                # If there are no rows, create a minimal table structure
+                if row_count == 0:
+                    try:
+                        # Create a minimal table structure if needed
+                        session.execute(text("""
+                            CREATE TABLE IF NOT EXISTS integrations (
+                                id SERIAL PRIMARY KEY,
+                                platform VARCHAR(50),
+                                account_name VARCHAR(255),
+                                account_id VARCHAR(255),
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            )
+                        """))
+                        session.commit()
+                        logger.info("Created minimal integrations table structure")
+                        
+                        # Update table_info
+                        table_info = {
+                            'has_user_id': False,
+                            'has_auth_type': False,
+                            'has_status': False,
+                            'has_platform': True,
+                            'has_account_name': True,
+                            'has_account_id': True,
+                            'has_extra_data': False,
+                            'has_last_sync': False
+                        }
+                    except Exception as e:
+                        logger.warning(f"Could not create table: {str(e)}")
+                        session.rollback()
+                
+                # Check if this integration already exists (using only columns we know exist)
                 existing_integration = None
                 try:
-                    if has_user_id_column:
-                        # Try with user_id filter using a safe raw SQL query
-                        result = session.execute(
-                            text("SELECT id, platform, status, auth_type, account_id, account_name, access_token, "
-                                 "refresh_token, token_type, scope, expires_at, last_sync, extra_data, created_at, updated_at "
-                                 "FROM integrations WHERE platform = :platform AND user_id = :user_id LIMIT 1"),
-                            {"platform": "stripe", "user_id": user_id}
-                        )
-                    else:
-                        # Query without user_id if the column doesn't exist
-                        result = session.execute(
-                            text("SELECT id, platform, status, auth_type, account_id, account_name, access_token, "
-                                 "refresh_token, token_type, scope, expires_at, last_sync, extra_data, created_at, updated_at "
-                                 "FROM integrations WHERE platform = :platform LIMIT 1"),
-                            {"platform": "stripe"}
-                        )
+                    query = "SELECT id, platform"
+                    if table_info.get('has_account_name', False):
+                        query += ", account_name"
+                    if table_info.get('has_account_id', False):
+                        query += ", account_id"
+                    query += " FROM integrations WHERE platform = :platform"
                     
-                    # Convert the result to a dictionary
+                    result = session.execute(text(query), {"platform": "stripe"})
                     row = result.fetchone()
+                    
                     if row:
-                        # Create an Integration object manually from the result
-                        integration_data = dict(zip(result.keys(), row))
-                        existing_integration = Integration(**integration_data)
+                        existing_integration = {
+                            'id': row[0],
+                            'platform': row[1]
+                        }
                         logger.info(f"Found existing integration: {existing_integration}")
                 except Exception as query_error:
                     logger.warning(f"Error querying integration: {str(query_error)}")
                     session.rollback()
-                    # Continue without existing integration
                 
                 now = datetime.utcnow()
                 
                 try:
                     if existing_integration:
-                        # Update existing integration using raw SQL to avoid ORM issues with missing columns
-                        update_values = {
-                            "auth_type": str(IntegrationAuthType.API_KEY.value),
-                            "access_token": None,
-                            "account_name": account_name,
-                            "account_id": account_id,
-                            "extra_data": json.dumps({
+                        # Update existing integration with only columns we know exist
+                        update_query = "UPDATE integrations SET "
+                        update_parts = []
+                        params = {"id": existing_integration['id']}
+                        
+                        if table_info.get('has_account_name', False):
+                            update_parts.append("account_name = :account_name")
+                            params["account_name"] = account_name
+                            
+                        if table_info.get('has_account_id', False):
+                            update_parts.append("account_id = :account_id")
+                            params["account_id"] = account_id
+                            
+                        if table_info.get('has_user_id', False):
+                            update_parts.append("user_id = :user_id")
+                            params["user_id"] = user_id
+                            
+                        if table_info.get('has_status', False):
+                            update_parts.append("status = :status")
+                            params["status"] = "connected"
+                            
+                        if table_info.get('has_last_sync', False):
+                            update_parts.append("last_sync = :last_sync")
+                            params["last_sync"] = now
+                            
+                        if table_info.get('has_extra_data', False):
+                            update_parts.append("extra_data = :extra_data")
+                            params["extra_data"] = json.dumps({
                                 "api_key": stripe_api_key,
                                 "account_data": {"name": account_name, "id": account_id}
-                            }),
-                            "last_sync": now,
-                            "status": str(IntegrationStatus.CONNECTED.value),
-                            "id": existing_integration.id
-                        }
-                        
-                        # Include user_id in update if the column exists
-                        if has_user_id_column:
-                            update_values["user_id"] = user_id
-                            update_query = text(
-                                "UPDATE integrations SET auth_type = :auth_type, access_token = :access_token, "
-                                "account_name = :account_name, account_id = :account_id, extra_data = :extra_data, "
-                                "last_sync = :last_sync, status = :status, user_id = :user_id "
-                                "WHERE id = :id"
-                            )
+                            })
+                            
+                        # Only proceed if we have something to update
+                        if update_parts:
+                            update_query += ", ".join(update_parts)
+                            update_query += " WHERE id = :id"
+                            session.execute(text(update_query), params)
+                            logger.info(f"Updated existing Stripe integration with available columns")
                         else:
-                            update_query = text(
-                                "UPDATE integrations SET auth_type = :auth_type, access_token = :access_token, "
-                                "account_name = :account_name, account_id = :account_id, extra_data = :extra_data, "
-                                "last_sync = :last_sync, status = :status "
-                                "WHERE id = :id"
-                            )
-                        
-                        session.execute(update_query, update_values)
-                        logger.info(f"Updated existing Stripe integration for user {user_id}")
+                            logger.warning("No columns available for update")
                     else:
-                        # Create new integration using raw SQL to avoid ORM issues with missing columns
-                        insert_values = {
-                            "platform": "stripe",
-                            "auth_type": str(IntegrationAuthType.API_KEY.value),
-                            "account_name": account_name,
-                            "account_id": account_id,
-                            "extra_data": json.dumps({
+                        # Create new integration using only columns we know exist
+                        insert_query = "INSERT INTO integrations ("
+                        column_names = ["platform"]
+                        value_names = [":platform"]
+                        params = {"platform": "stripe"}
+                        
+                        if table_info.get('has_account_name', False):
+                            column_names.append("account_name")
+                            value_names.append(":account_name")
+                            params["account_name"] = account_name
+                            
+                        if table_info.get('has_account_id', False):
+                            column_names.append("account_id")
+                            value_names.append(":account_id")
+                            params["account_id"] = account_id
+                            
+                        if table_info.get('has_user_id', False):
+                            column_names.append("user_id")
+                            value_names.append(":user_id")
+                            params["user_id"] = user_id
+                            
+                        if table_info.get('has_status', False):
+                            column_names.append("status")
+                            value_names.append(":status")
+                            params["status"] = "connected"
+                            
+                        if table_info.get('has_last_sync', False):
+                            column_names.append("last_sync")
+                            value_names.append(":last_sync")
+                            params["last_sync"] = now
+                            
+                        if table_info.get('has_extra_data', False):
+                            column_names.append("extra_data")
+                            value_names.append(":extra_data")
+                            params["extra_data"] = json.dumps({
                                 "api_key": stripe_api_key,
                                 "account_data": {"name": account_name, "id": account_id}
-                            }),
-                            "last_sync": now,
-                            "status": str(IntegrationStatus.CONNECTED.value),
-                            "created_at": now,
-                            "updated_at": now
-                        }
+                            })
                         
-                        # Include user_id in insert if the column exists
-                        if has_user_id_column:
-                            insert_values["user_id"] = user_id
-                            insert_query = text(
-                                "INSERT INTO integrations (platform, auth_type, account_name, account_id, extra_data, "
-                                "last_sync, status, created_at, updated_at, user_id) "
-                                "VALUES (:platform, :auth_type, :account_name, :account_id, :extra_data, "
-                                ":last_sync, :status, :created_at, :updated_at, :user_id)"
-                            )
-                        else:
-                            insert_query = text(
-                                "INSERT INTO integrations (platform, auth_type, account_name, account_id, extra_data, "
-                                "last_sync, status, created_at, updated_at) "
-                                "VALUES (:platform, :auth_type, :account_name, :account_id, :extra_data, "
-                                ":last_sync, :status, :created_at, :updated_at)"
-                            )
-                        
-                        session.execute(insert_query, insert_values)
-                        logger.info(f"Created new Stripe integration for user {user_id}")
+                        insert_query += ", ".join(column_names) + ") VALUES (" + ", ".join(value_names) + ")"
+                        session.execute(text(insert_query), params)
+                        logger.info(f"Created new Stripe integration with available columns")
                     
                     # Commit the transaction
                     session.commit()
