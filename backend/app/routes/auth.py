@@ -19,6 +19,8 @@ import logging
 from app.database import get_db
 from app.models.integration import Integration, IntegrationType, IntegrationStatus, IntegrationAuthType
 from app.schemas.integration import IntegrationStatusList, IntegrationUpdate, IntegrationCreate
+from app.utils.security import get_optional_current_user
+from app.models.user import User
 
 # Get logger
 logger = logging.getLogger(__name__)
@@ -389,17 +391,24 @@ async def oauth_callback(
 @router.delete("/api/integrations/{platform}", status_code=status.HTTP_200_OK)
 async def disconnect_integration(
     platform: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
-    Disconnect an integration.
+    Disconnect an integration for the current user.
     
     Args:
         platform: The platform to disconnect
+        db: Database session
+        current_user: Current authenticated user (optional)
         
     Returns:
         dict: Disconnection result.
     """
+    # Use the authenticated user's ID if available, otherwise default to 1 for demo
+    user_id = current_user.id if current_user else 1
+    logger.info(f"Disconnecting {platform} for user {user_id}")
+    
     # Validate platform
     if platform not in OAUTH_CONFIG:
         raise HTTPException(
@@ -407,13 +416,16 @@ async def disconnect_integration(
             detail=f"Invalid platform. Must be one of: {', '.join(OAUTH_CONFIG.keys())}"
         )
     
-    # Find integration in database
-    integration = db.query(Integration).filter(Integration.platform == platform).first()
+    # Find integration in database for the current user
+    integration = db.query(Integration).filter(
+        Integration.platform == platform,
+        Integration.user_id == user_id
+    ).first()
     
     if not integration:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Integration for {platform} not found"
+            detail=f"Integration for {platform} not found for this user"
         )
     
     # Update integration status
@@ -427,21 +439,32 @@ async def disconnect_integration(
     }
 
 @router.get("/api/integrations/status")
-async def get_integration_status(db: Session = Depends(get_db)):
+async def get_integration_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user)
+):
     """
-    Get the status of all platform integrations.
+    Get the status of all platform integrations for the current user.
     
+    Args:
+        db: Database session
+        current_user: Current authenticated user (optional)
+        
     Returns:
         IntegrationStatusList: Status of each integration platform.
     """
     try:
+        # Use the authenticated user's ID if available, otherwise default to 1 for demo
+        user_id = current_user.id if current_user else 1
+        logger.info(f"Getting integration status for user {user_id}")
+        
         # Get all platforms from config
         platforms = list(OAUTH_CONFIG.keys())
         
-        # Get integrations from database
+        # Get integrations from database for the current user
         try:
-            integrations = db.query(Integration).all()
-            logger.info(f"Retrieved {len(integrations)} integrations from database")
+            integrations = db.query(Integration).filter(Integration.user_id == user_id).all()
+            logger.info(f"Retrieved {len(integrations)} integrations for user {user_id}")
         except Exception as db_error:
             logger.error(f"Database error fetching integrations: {str(db_error)}")
             raise HTTPException(
@@ -539,14 +562,15 @@ async def get_account_info(platform: str, access_token: str) -> tuple:
     # Default values if we couldn't get account info
     return f"{platform.capitalize()} Account", ""
 
-async def sync_platform_data(platform: str, db: Session):
+async def sync_platform_data(platform: str, db: Session, user_id: int = 1):
     """
-    Sync data from the integrated platform.
+    Sync data from the integrated platform for a specific user.
     This function would be implemented to pull data from the platform APIs.
     
     Args:
         platform: The platform to sync data from
         db: Database session
+        user_id: User ID to sync data for (defaults to 1 for testing/demo)
     """
     # This is a placeholder - in a real implementation, this would:
     # 1. Get the integration record from the database
@@ -555,8 +579,11 @@ async def sync_platform_data(platform: str, db: Session):
     # 4. Update the last_sync timestamp on the integration record
     
     try:
-        # Get integration record
-        integration = db.query(Integration).filter(Integration.platform == platform).first()
+        # Get integration record for the user
+        integration = db.query(Integration).filter(
+            Integration.platform == platform,
+            Integration.user_id == user_id
+        ).first()
         
         if not integration or not integration.is_connected:
             return
@@ -565,16 +592,16 @@ async def sync_platform_data(platform: str, db: Session):
         integration.last_sync = datetime.utcnow()
         db.commit()
         
-        print(f"Data sync for {platform} completed successfully!")
+        logger.info(f"Data sync for {platform} (user {user_id}) completed successfully!")
     
     except Exception as e:
-        print(f"Error syncing data for {platform}: {str(e)}")
+        logger.error(f"Error syncing data for {platform} (user {user_id}): {str(e)}")
 
 @router.post("/api/integrations/calcom/api-key")
 def connect_calcom_api_key(
     api_key: dict, 
     db: Session = Depends(get_db),
-    user_id: int = 1  # Default to user 1 for now
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Connect Cal.com using API key.
@@ -582,11 +609,14 @@ def connect_calcom_api_key(
     Args:
         api_key: JSON object containing the API key
         db: Database session
-        user_id: User ID (defaults to 1 for testing/demo)
+        current_user: Current authenticated user (optional)
         
     Returns:
         JSON response with connection status
     """
+    # Use the authenticated user's ID if available, otherwise default to 1 for demo
+    user_id = current_user.id if current_user else 1
+    
     logger.info(f"Connecting Cal.com via API key for user {user_id}")
     
     if "api_key" not in api_key:
@@ -675,7 +705,7 @@ def connect_calcom_api_key(
 def connect_youtube_api_key(
     api_data: dict, 
     db: Session = Depends(get_db),
-    user_id: int = 1  # Default to user 1 for now
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Connect YouTube using API key and channel ID.
@@ -683,11 +713,14 @@ def connect_youtube_api_key(
     Args:
         api_data: JSON object containing the API key and channel ID
         db: Database session
-        user_id: User ID (defaults to 1 for testing/demo)
+        current_user: Current authenticated user (optional)
         
     Returns:
         JSON response with connection status
     """
+    # Use the authenticated user's ID if available, otherwise default to 1 for demo
+    user_id = current_user.id if current_user else 1
+    
     logger.info(f"Connecting YouTube via API key for user {user_id}")
     
     if "api_key" not in api_data:
@@ -803,7 +836,7 @@ def connect_youtube_api_key(
 def connect_stripe_api_key(
     api_key: dict, 
     db: Session = Depends(get_db),
-    user_id: int = 1  # Default to user 1 for now
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Connect Stripe using API key.
@@ -811,11 +844,14 @@ def connect_stripe_api_key(
     Args:
         api_key: JSON object containing the API key
         db: Database session
-        user_id: User ID (defaults to 1 for testing/demo)
+        current_user: Current authenticated user (optional)
         
     Returns:
         JSON response with connection status
     """
+    # Use the authenticated user's ID if available, otherwise default to 1 for demo
+    user_id = current_user.id if current_user else 1
+    
     logger.info(f"Connecting Stripe via API key for user {user_id}")
     
     if "api_key" not in api_key:
@@ -914,7 +950,7 @@ def connect_stripe_api_key(
 def connect_calendly_api_key(
     api_key: dict, 
     db: Session = Depends(get_db),
-    user_id: int = 1  # Default to user 1 for now
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Connect Calendly using API key.
@@ -922,11 +958,14 @@ def connect_calendly_api_key(
     Args:
         api_key: JSON object containing the API key
         db: Database session
-        user_id: User ID (defaults to 1 for testing/demo)
+        current_user: Current authenticated user (optional)
         
     Returns:
         JSON response with connection status
     """
+    # Use the authenticated user's ID if available, otherwise default to 1 for demo
+    user_id = current_user.id if current_user else 1
+    
     logger.info(f"Connecting Calendly via API key for user {user_id}")
     
     if "api_key" not in api_key:

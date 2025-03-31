@@ -50,11 +50,11 @@ checkBackendAvailability();
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // You can add auth tokens or other headers here if needed
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Add authentication token to all requests
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     
     return config;
   },
@@ -114,8 +114,12 @@ api.interceptors.response.use(
         });
       }
       
-      // Handle other status codes
-      // ... existing code ...
+      // Handle unauthorized errors (401)
+      if (status === 401) {
+        // Redirect to login if unauthorized
+        console.log("Unauthorized API request, redirecting to login");
+        // You could dispatch a logout action here or redirect to login
+      }
     }
     
     // Return the error for further processing
