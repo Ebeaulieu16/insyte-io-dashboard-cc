@@ -461,18 +461,32 @@ async def get_integration_status(
         # Get all platforms from config
         platforms = list(OAUTH_CONFIG.keys())
         
+        # Initialize integrations list
+        db_integrations = []
+        
         # Get integrations from database for the current user
+        # Create a new session for each attempt to avoid transaction issues
         try:
             # Try to query with user_id first
             try:
-                integrations = db.query(Integration).filter(Integration.user_id == user_id).all()
-                logger.info(f"Retrieved {len(integrations)} integrations for user {user_id} using user_id column")
+                # Create new session for this query
+                from app.database import SessionLocal
+                with SessionLocal() as new_db:
+                    db_integrations = new_db.query(Integration).filter(Integration.user_id == user_id).all()
+                    # Copy the results to detach them from the session
+                    db_integrations = [integration for integration in db_integrations]
+                logger.info(f"Retrieved {len(db_integrations)} integrations for user {user_id} using user_id column")
             except Exception as user_id_error:
                 # If that fails (possibly because user_id column doesn't exist),
                 # just get all integrations as a fallback
                 logger.warning(f"Error querying by user_id, falling back to all integrations: {str(user_id_error)}")
-                integrations = db.query(Integration).all()
-                logger.info(f"Retrieved {len(integrations)} integrations without user_id filter")
+                # Create new session for fallback query
+                from app.database import SessionLocal
+                with SessionLocal() as new_db:
+                    db_integrations = new_db.query(Integration).all()
+                    # Copy the results to detach them from the session
+                    db_integrations = [integration for integration in db_integrations]
+                logger.info(f"Retrieved {len(db_integrations)} integrations without user_id filter")
         except Exception as db_error:
             logger.error(f"Database error fetching integrations: {str(db_error)}")
             raise HTTPException(
@@ -484,7 +498,7 @@ async def get_integration_status(
         status_dict = {platform: {"platform": platform, "status": "disconnected"} for platform in platforms}
         
         # Update with actual values from DB
-        for integration in integrations:
+        for integration in db_integrations:
             try:
                 status = integration.status if isinstance(integration.status, str) else str(integration.status)
                 status_dict[integration.platform] = {
@@ -622,114 +636,152 @@ def connect_calcom_api_key(
     Returns:
         JSON response with connection status
     """
-    # Use the authenticated user's ID if available, otherwise default to 1 for demo
-    # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
-    user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
+    # Use a new database session to ensure clean transactions
+    from app.database import SessionLocal
     
-    logger.info(f"Connecting Cal.com via API key for user {user_id}")
-    
-    if "api_key" not in api_key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="API key is required"
-        )
-    
-    calcom_api_key = api_key["api_key"].strip()
-    logger.info(f"Received API key: {calcom_api_key[:4]}...{calcom_api_key[-4:] if len(calcom_api_key) > 8 else ''}")
-
-    # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key looks valid
-    if calcom_api_key.startswith("cal_"):
-        logger.warning("TEMPORARY: Skipping actual API validation and proceeding with mock data")
-        account_name = "Cal.com Test User"
-        account_id = "user_test123"
+    try:
+        # Use the authenticated user's ID if available, otherwise default to 1 for demo
+        # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
+        user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
         
-        # Check if this integration already exists for the user
-        # Try to query with user_id, but handle case where column may not exist yet
-        try:
-            # Try with user_id filter
-            existing_integration = db.query(Integration).filter(
-                Integration.user_id == user_id,
-                Integration.platform == "calcom"
-            ).first()
-            
-            logger.info(f"Queried integrations with user_id filter: {existing_integration}")
-        except Exception as user_id_error:
-            # Fallback: if user_id column doesn't exist, just filter by platform
-            logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
-            existing_integration = db.query(Integration).filter(
-                Integration.platform == "calcom"
-            ).first()
-            
-            logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
+        logger.info(f"Connecting Cal.com via API key for user {user_id}")
         
-        now = datetime.utcnow()
-        
-        if existing_integration:
-            # Update existing integration
-            existing_integration.auth_type = IntegrationAuthType.API_KEY
-            existing_integration.access_token = None
-            existing_integration.account_name = account_name
-            existing_integration.account_id = account_id
-            existing_integration.extra_data = {
-                "api_key": calcom_api_key,
-                "user_data": {"name": account_name, "id": account_id}
-            }
-            
-            # Try to set user_id if the column exists
-            try:
-                existing_integration.user_id = user_id
-            except Exception:
-                logger.warning(f"Could not set user_id on integration - column may not exist yet")
-                
-            existing_integration.last_sync = now
-            existing_integration.status = IntegrationStatus.CONNECTED
-            logger.info(f"Updated existing Cal.com integration for user {user_id}")
-        else:
-            # Create new integration
-            try:
-                new_integration = Integration(
-                    user_id=user_id,
-                    platform="calcom",
-                    auth_type=IntegrationAuthType.API_KEY,
-                    account_name=account_name,
-                    account_id=account_id,
-                    extra_data={
-                        "api_key": calcom_api_key,
-                        "user_data": {"name": account_name, "id": account_id}
-                    },
-                    last_sync=now,
-                    status=IntegrationStatus.CONNECTED
-                )
-            except Exception as create_error:
-                # If user_id column doesn't exist, try creating without it
-                logger.warning(f"Error creating integration with user_id: {str(create_error)}")
-                new_integration = Integration(
-                    platform="calcom",
-                    auth_type=IntegrationAuthType.API_KEY,
-                    account_name=account_name,
-                    account_id=account_id,
-                    extra_data={
-                        "api_key": calcom_api_key,
-                        "user_data": {"name": account_name, "id": account_id}
-                    },
-                    last_sync=now,
-                    status=IntegrationStatus.CONNECTED
-                )
-            
-            db.add(new_integration)
-            logger.info(f"Created new Cal.com integration for user {user_id}")
-        
-        try:
-            db.commit()
-        except Exception as commit_error:
-            logger.error(f"Error committing integration: {str(commit_error)}")
-            db.rollback()
+        if "api_key" not in api_key:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error saving integration: {str(commit_error)}"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API key is required"
             )
         
-        return {"status": "success", "account_name": account_name}
+        calcom_api_key = api_key["api_key"].strip()
+        logger.info(f"Received API key: {calcom_api_key[:4]}...{calcom_api_key[-4:] if len(calcom_api_key) > 8 else ''}")
+
+        # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key looks valid
+        if calcom_api_key.startswith("cal_"):
+            logger.warning("TEMPORARY: Skipping actual API validation and proceeding with mock data")
+            account_name = "Cal.com Test User"
+            account_id = "user_test123"
+            
+            # Create a new session for database operations
+            with SessionLocal() as session:
+                # Check if this integration already exists for the user
+                # Try to query with user_id, but handle case where column may not exist yet
+                existing_integration = None
+                try:
+                    # Try with user_id filter
+                    existing_integration = session.query(Integration).filter(
+                        Integration.user_id == user_id,
+                        Integration.platform == "calcom"
+                    ).first()
+                    
+                    logger.info(f"Queried integrations with user_id filter: {existing_integration}")
+                except Exception as user_id_error:
+                    # Fallback: if user_id column doesn't exist, just filter by platform
+                    logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
+                    session.rollback()  # Important: roll back the transaction
+                    
+                    try:
+                        existing_integration = session.query(Integration).filter(
+                            Integration.platform == "calcom"
+                        ).first()
+                        
+                        logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
+                    except Exception as platform_query_error:
+                        logger.error(f"Error querying by platform: {str(platform_query_error)}")
+                        session.rollback()
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Database error: {str(platform_query_error)}"
+                        )
+                
+                now = datetime.utcnow()
+                
+                try:
+                    if existing_integration:
+                        # Update existing integration
+                        existing_integration.auth_type = IntegrationAuthType.API_KEY
+                        existing_integration.access_token = None
+                        existing_integration.account_name = account_name
+                        existing_integration.account_id = account_id
+                        existing_integration.extra_data = {
+                            "api_key": calcom_api_key,
+                            "user_data": {"name": account_name, "id": account_id}
+                        }
+                        
+                        # Try to set user_id if the column exists
+                        try:
+                            existing_integration.user_id = user_id
+                        except Exception as user_id_error:
+                            logger.warning(f"Could not set user_id on integration - column may not exist yet: {str(user_id_error)}")
+                            # Continue without setting user_id
+                            
+                        existing_integration.last_sync = now
+                        existing_integration.status = IntegrationStatus.CONNECTED
+                        logger.info(f"Updated existing Cal.com integration for user {user_id}")
+                    else:
+                        # Create new integration
+                        try:
+                            new_integration = Integration(
+                                user_id=user_id,
+                                platform="calcom",
+                                auth_type=IntegrationAuthType.API_KEY,
+                                account_name=account_name,
+                                account_id=account_id,
+                                extra_data={
+                                    "api_key": calcom_api_key,
+                                    "user_data": {"name": account_name, "id": account_id}
+                                },
+                                last_sync=now,
+                                status=IntegrationStatus.CONNECTED
+                            )
+                        except Exception as create_error:
+                            # If user_id column doesn't exist, try creating without it
+                            logger.warning(f"Error creating integration with user_id: {str(create_error)}")
+                            session.rollback()
+                            
+                            new_integration = Integration(
+                                platform="calcom",
+                                auth_type=IntegrationAuthType.API_KEY,
+                                account_name=account_name,
+                                account_id=account_id,
+                                extra_data={
+                                    "api_key": calcom_api_key,
+                                    "user_data": {"name": account_name, "id": account_id}
+                                },
+                                last_sync=now,
+                                status=IntegrationStatus.CONNECTED
+                            )
+                        
+                        session.add(new_integration)
+                        logger.info(f"Created new Cal.com integration for user {user_id}")
+                    
+                    # Commit the transaction
+                    session.commit()
+                    logger.info("Successfully saved Cal.com integration to database")
+                except Exception as db_operation_error:
+                    logger.error(f"Error during database operation: {str(db_operation_error)}")
+                    session.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Error saving integration: {str(db_operation_error)}"
+                    )
+            
+            return {"status": "success", "account_name": account_name}
+            
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Cal.com API key format. Key should start with 'cal_'."
+            )
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in connect_calcom_api_key: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error: {str(e)}"
+        )
 
 @router.post("/api/integrations/youtube/api-key")
 def connect_youtube_api_key(
@@ -748,125 +800,163 @@ def connect_youtube_api_key(
     Returns:
         JSON response with connection status
     """
-    # Use the authenticated user's ID if available, otherwise default to 1 for demo
-    # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
-    user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
+    # Use a new database session to ensure clean transactions
+    from app.database import SessionLocal
     
-    logger.info(f"Connecting YouTube via API key for user {user_id}")
-    
-    if "api_key" not in api_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="API key is required"
-        )
-    
-    if "channel_id" not in api_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="YouTube channel ID is required"
-        )
-    
-    youtube_api_key = api_data["api_key"].strip()
-    channel_id = api_data["channel_id"].strip()
-    
-    logger.info(f"Received API key: {youtube_api_key[:4]}...{youtube_api_key[-4:] if len(youtube_api_key) > 8 else ''}")
-    logger.info(f"Received channel ID: {channel_id}")
-
-    # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key starts with appropriate prefix
-    if youtube_api_key.startswith("AIza"):
-        logger.warning("TEMPORARY: Skipping actual API validation and proceeding with mock data")
-        channel_name = "YouTube Test Channel" 
+    try:
+        # Use the authenticated user's ID if available, otherwise default to 1 for demo
+        # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
+        user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
         
-        # Check if this integration already exists for the user
-        # Try to query with user_id, but handle case where column may not exist yet
-        try:
-            # Try with user_id filter
-            existing_integration = db.query(Integration).filter(
-                Integration.user_id == user_id,
-                Integration.platform == "youtube"
-            ).first()
-            
-            logger.info(f"Queried integrations with user_id filter: {existing_integration}")
-        except Exception as user_id_error:
-            # Fallback: if user_id column doesn't exist, just filter by platform
-            logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
-            existing_integration = db.query(Integration).filter(
-                Integration.platform == "youtube"
-            ).first()
-            
-            logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
+        logger.info(f"Connecting YouTube via API key for user {user_id}")
         
-        now = datetime.utcnow()
-        
-        if existing_integration:
-            # Update existing integration
-            existing_integration.auth_type = IntegrationAuthType.API_KEY
-            existing_integration.access_token = None
-            existing_integration.account_name = channel_name
-            existing_integration.account_id = channel_id
-            existing_integration.extra_data = {
-                "api_key": youtube_api_key,
-                "channel_id": channel_id,
-                "channel_info": {"title": channel_name}
-            }
-            
-            # Try to set user_id if the column exists
-            try:
-                existing_integration.user_id = user_id
-            except Exception:
-                logger.warning(f"Could not set user_id on integration - column may not exist yet")
-                
-            existing_integration.last_sync = now
-            existing_integration.status = IntegrationStatus.CONNECTED
-            logger.info(f"Updated existing YouTube integration for user {user_id}")
-        else:
-            # Create new integration
-            try:
-                new_integration = Integration(
-                    user_id=user_id,
-                    platform="youtube",
-                    auth_type=IntegrationAuthType.API_KEY,
-                    account_name=channel_name,
-                    account_id=channel_id,
-                    extra_data={
-                        "api_key": youtube_api_key,
-                        "channel_id": channel_id,
-                        "channel_info": {"title": channel_name}
-                    },
-                    last_sync=now,
-                    status=IntegrationStatus.CONNECTED
-                )
-            except Exception as create_error:
-                # If user_id column doesn't exist, try creating without it
-                logger.warning(f"Error creating integration with user_id: {str(create_error)}")
-                new_integration = Integration(
-                    platform="youtube",
-                    auth_type=IntegrationAuthType.API_KEY,
-                    account_name=channel_name,
-                    account_id=channel_id,
-                    extra_data={
-                        "api_key": youtube_api_key,
-                        "channel_id": channel_id,
-                        "channel_info": {"title": channel_name}
-                    },
-                    last_sync=now,
-                    status=IntegrationStatus.CONNECTED
-                )
-            
-            db.add(new_integration)
-            logger.info(f"Created new YouTube integration for user {user_id}")
-        
-        try:
-            db.commit()
-        except Exception as commit_error:
-            logger.error(f"Error committing integration: {str(commit_error)}")
-            db.rollback()
+        if "api_key" not in api_data:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error saving integration: {str(commit_error)}"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API key is required"
             )
         
-        return {"status": "success", "account_name": channel_name}
+        if "channel_id" not in api_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="YouTube channel ID is required"
+            )
+        
+        youtube_api_key = api_data["api_key"].strip()
+        channel_id = api_data["channel_id"].strip()
+        
+        logger.info(f"Received API key: {youtube_api_key[:4]}...{youtube_api_key[-4:] if len(youtube_api_key) > 8 else ''}")
+        logger.info(f"Received channel ID: {channel_id}")
+
+        # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key starts with appropriate prefix
+        if youtube_api_key.startswith("AIza"):
+            logger.warning("TEMPORARY: Skipping actual API validation and proceeding with mock data")
+            channel_name = "YouTube Test Channel" 
+            
+            # Create a new session for database operations
+            with SessionLocal() as session:
+                # Check if this integration already exists for the user
+                # Try to query with user_id, but handle case where column may not exist yet
+                existing_integration = None
+                try:
+                    # Try with user_id filter
+                    existing_integration = session.query(Integration).filter(
+                        Integration.user_id == user_id,
+                        Integration.platform == "youtube"
+                    ).first()
+                    
+                    logger.info(f"Queried integrations with user_id filter: {existing_integration}")
+                except Exception as user_id_error:
+                    # Fallback: if user_id column doesn't exist, just filter by platform
+                    logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
+                    session.rollback()  # Important: roll back the transaction
+                    
+                    try:
+                        existing_integration = session.query(Integration).filter(
+                            Integration.platform == "youtube"
+                        ).first()
+                        
+                        logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
+                    except Exception as platform_query_error:
+                        logger.error(f"Error querying by platform: {str(platform_query_error)}")
+                        session.rollback()
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Database error: {str(platform_query_error)}"
+                        )
+                
+                now = datetime.utcnow()
+                
+                try:
+                    if existing_integration:
+                        # Update existing integration
+                        existing_integration.auth_type = IntegrationAuthType.API_KEY
+                        existing_integration.access_token = None
+                        existing_integration.account_name = channel_name
+                        existing_integration.account_id = channel_id
+                        existing_integration.extra_data = {
+                            "api_key": youtube_api_key,
+                            "channel_id": channel_id,
+                            "channel_info": {"title": channel_name}
+                        }
+                        
+                        # Try to set user_id if the column exists
+                        try:
+                            existing_integration.user_id = user_id
+                        except Exception as user_id_error:
+                            logger.warning(f"Could not set user_id on integration - column may not exist yet: {str(user_id_error)}")
+                            # Continue without setting user_id
+                            
+                        existing_integration.last_sync = now
+                        existing_integration.status = IntegrationStatus.CONNECTED
+                        logger.info(f"Updated existing YouTube integration for user {user_id}")
+                    else:
+                        # Create new integration
+                        try:
+                            new_integration = Integration(
+                                user_id=user_id,
+                                platform="youtube",
+                                auth_type=IntegrationAuthType.API_KEY,
+                                account_name=channel_name,
+                                account_id=channel_id,
+                                extra_data={
+                                    "api_key": youtube_api_key,
+                                    "channel_id": channel_id,
+                                    "channel_info": {"title": channel_name}
+                                },
+                                last_sync=now,
+                                status=IntegrationStatus.CONNECTED
+                            )
+                        except Exception as create_error:
+                            # If user_id column doesn't exist, try creating without it
+                            logger.warning(f"Error creating integration with user_id: {str(create_error)}")
+                            session.rollback()
+                            
+                            new_integration = Integration(
+                                platform="youtube",
+                                auth_type=IntegrationAuthType.API_KEY,
+                                account_name=channel_name,
+                                account_id=channel_id,
+                                extra_data={
+                                    "api_key": youtube_api_key,
+                                    "channel_id": channel_id,
+                                    "channel_info": {"title": channel_name}
+                                },
+                                last_sync=now,
+                                status=IntegrationStatus.CONNECTED
+                            )
+                        
+                        session.add(new_integration)
+                        logger.info(f"Created new YouTube integration for user {user_id}")
+                    
+                    # Commit the transaction
+                    session.commit()
+                    logger.info("Successfully saved YouTube integration to database")
+                except Exception as db_operation_error:
+                    logger.error(f"Error during database operation: {str(db_operation_error)}")
+                    session.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Error saving integration: {str(db_operation_error)}"
+                    )
+            
+            return {"status": "success", "account_name": channel_name}
+            
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid YouTube API key format. Key should start with 'AIza'."
+            )
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in connect_youtube_api_key: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error: {str(e)}"
+        )
 
 @router.post("/api/integrations/stripe/api-key")
 def connect_stripe_api_key(
@@ -885,114 +975,152 @@ def connect_stripe_api_key(
     Returns:
         JSON response with connection status
     """
-    # Use the authenticated user's ID if available, otherwise default to 1 for demo
-    # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
-    user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
+    # Use a new database session to ensure clean transactions
+    from app.database import SessionLocal
     
-    logger.info(f"Connecting Stripe via API key for user {user_id}")
-    
-    if "api_key" not in api_key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="API key is required"
-        )
-    
-    stripe_api_key = api_key["api_key"].strip()
-    logger.info(f"Received API key: {stripe_api_key[:4]}...{stripe_api_key[-4:] if len(stripe_api_key) > 8 else ''}")
-
-    # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key starts with sk_
-    if stripe_api_key.startswith("sk_"):
-        logger.warning("TEMPORARY: Skipping actual API validation and proceeding with mock data")
-        account_name = "Stripe Test Account"
-        account_id = "acct_test123"
+    try:
+        # Use the authenticated user's ID if available, otherwise default to 1 for demo
+        # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
+        user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
         
-        # Check if this integration already exists for the user
-        # Try to query with user_id, but handle case where column may not exist yet
-        try:
-            # Try with user_id filter
-            existing_integration = db.query(Integration).filter(
-                Integration.user_id == user_id,
-                Integration.platform == "stripe"
-            ).first()
-            
-            logger.info(f"Queried integrations with user_id filter: {existing_integration}")
-        except Exception as user_id_error:
-            # Fallback: if user_id column doesn't exist, just filter by platform
-            logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
-            existing_integration = db.query(Integration).filter(
-                Integration.platform == "stripe"
-            ).first()
-            
-            logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
+        logger.info(f"Connecting Stripe via API key for user {user_id}")
         
-        now = datetime.utcnow()
-        
-        if existing_integration:
-            # Update existing integration
-            existing_integration.auth_type = IntegrationAuthType.API_KEY
-            existing_integration.access_token = None
-            existing_integration.account_name = account_name
-            existing_integration.account_id = account_id
-            existing_integration.extra_data = {
-                "api_key": stripe_api_key,
-                "account_data": {"name": account_name, "id": account_id}
-            }
-            
-            # Try to set user_id if the column exists
-            try:
-                existing_integration.user_id = user_id
-            except Exception:
-                logger.warning(f"Could not set user_id on integration - column may not exist yet")
-                
-            existing_integration.last_sync = now
-            existing_integration.status = IntegrationStatus.CONNECTED
-            logger.info(f"Updated existing Stripe integration for user {user_id}")
-        else:
-            # Create new integration
-            try:
-                new_integration = Integration(
-                    user_id=user_id,
-                    platform="stripe",
-                    auth_type=IntegrationAuthType.API_KEY,
-                    account_name=account_name,
-                    account_id=account_id,
-                    extra_data={
-                        "api_key": stripe_api_key,
-                        "account_data": {"name": account_name, "id": account_id}
-                    },
-                    last_sync=now,
-                    status=IntegrationStatus.CONNECTED
-                )
-            except Exception as create_error:
-                # If user_id column doesn't exist, try creating without it
-                logger.warning(f"Error creating integration with user_id: {str(create_error)}")
-                new_integration = Integration(
-                    platform="stripe",
-                    auth_type=IntegrationAuthType.API_KEY,
-                    account_name=account_name,
-                    account_id=account_id,
-                    extra_data={
-                        "api_key": stripe_api_key,
-                        "account_data": {"name": account_name, "id": account_id}
-                    },
-                    last_sync=now,
-                    status=IntegrationStatus.CONNECTED
-                )
-            
-            db.add(new_integration)
-            logger.info(f"Created new Stripe integration for user {user_id}")
-        
-        try:
-            db.commit()
-        except Exception as commit_error:
-            logger.error(f"Error committing integration: {str(commit_error)}")
-            db.rollback()
+        if "api_key" not in api_key:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error saving integration: {str(commit_error)}"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API key is required"
             )
         
-        return {"status": "success", "account_name": account_name}
+        stripe_api_key = api_key["api_key"].strip()
+        logger.info(f"Received API key: {stripe_api_key[:4]}...{stripe_api_key[-4:] if len(stripe_api_key) > 8 else ''}")
+
+        # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key starts with sk_
+        if stripe_api_key.startswith("sk_"):
+            logger.warning("TEMPORARY: Skipping actual API validation and proceeding with mock data")
+            account_name = "Stripe Test Account"
+            account_id = "acct_test123"
+            
+            # Create a new session for database operations
+            with SessionLocal() as session:
+                # Check if this integration already exists for the user
+                # Try to query with user_id, but handle case where column may not exist yet
+                existing_integration = None
+                try:
+                    # Try with user_id filter
+                    existing_integration = session.query(Integration).filter(
+                        Integration.user_id == user_id,
+                        Integration.platform == "stripe"
+                    ).first()
+                    
+                    logger.info(f"Queried integrations with user_id filter: {existing_integration}")
+                except Exception as user_id_error:
+                    # Fallback: if user_id column doesn't exist, just filter by platform
+                    logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
+                    session.rollback()  # Important: roll back the transaction
+                    
+                    try:
+                        existing_integration = session.query(Integration).filter(
+                            Integration.platform == "stripe"
+                        ).first()
+                        
+                        logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
+                    except Exception as platform_query_error:
+                        logger.error(f"Error querying by platform: {str(platform_query_error)}")
+                        session.rollback()
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Database error: {str(platform_query_error)}"
+                        )
+                
+                now = datetime.utcnow()
+                
+                try:
+                    if existing_integration:
+                        # Update existing integration
+                        existing_integration.auth_type = IntegrationAuthType.API_KEY
+                        existing_integration.access_token = None
+                        existing_integration.account_name = account_name
+                        existing_integration.account_id = account_id
+                        existing_integration.extra_data = {
+                            "api_key": stripe_api_key,
+                            "account_data": {"name": account_name, "id": account_id}
+                        }
+                        
+                        # Try to set user_id if the column exists
+                        try:
+                            existing_integration.user_id = user_id
+                        except Exception as user_id_error:
+                            logger.warning(f"Could not set user_id on integration - column may not exist yet: {str(user_id_error)}")
+                            # Continue without setting user_id
+                            
+                        existing_integration.last_sync = now
+                        existing_integration.status = IntegrationStatus.CONNECTED
+                        logger.info(f"Updated existing Stripe integration for user {user_id}")
+                    else:
+                        # Create new integration
+                        try:
+                            new_integration = Integration(
+                                user_id=user_id,
+                                platform="stripe",
+                                auth_type=IntegrationAuthType.API_KEY,
+                                account_name=account_name,
+                                account_id=account_id,
+                                extra_data={
+                                    "api_key": stripe_api_key,
+                                    "account_data": {"name": account_name, "id": account_id}
+                                },
+                                last_sync=now,
+                                status=IntegrationStatus.CONNECTED
+                            )
+                        except Exception as create_error:
+                            # If user_id column doesn't exist, try creating without it
+                            logger.warning(f"Error creating integration with user_id: {str(create_error)}")
+                            session.rollback()
+                            
+                            new_integration = Integration(
+                                platform="stripe",
+                                auth_type=IntegrationAuthType.API_KEY,
+                                account_name=account_name,
+                                account_id=account_id,
+                                extra_data={
+                                    "api_key": stripe_api_key,
+                                    "account_data": {"name": account_name, "id": account_id}
+                                },
+                                last_sync=now,
+                                status=IntegrationStatus.CONNECTED
+                            )
+                        
+                        session.add(new_integration)
+                        logger.info(f"Created new Stripe integration for user {user_id}")
+                    
+                    # Commit the transaction
+                    session.commit()
+                    logger.info("Successfully saved Stripe integration to database")
+                except Exception as db_operation_error:
+                    logger.error(f"Error during database operation: {str(db_operation_error)}")
+                    session.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Error saving integration: {str(db_operation_error)}"
+                    )
+            
+            return {"status": "success", "account_name": account_name}
+            
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Stripe API key format. Key should start with 'sk_'."
+            )
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in connect_stripe_api_key: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error: {str(e)}"
+        )
 
 @router.post("/api/integrations/calendly/api-key")
 def connect_calendly_api_key(
@@ -1011,111 +1139,143 @@ def connect_calendly_api_key(
     Returns:
         JSON response with connection status
     """
-    # Use the authenticated user's ID if available, otherwise default to 1 for demo
-    # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
-    user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
+    # Use a new database session to ensure clean transactions
+    from app.database import SessionLocal
     
-    logger.info(f"Connecting Calendly via API key for user {user_id}")
-    
-    if "api_key" not in api_key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="API key is required"
-        )
-    
-    calendly_api_key = api_key["api_key"].strip()
-    logger.info(f"Received API key: {calendly_api_key[:4]}...{calendly_api_key[-4:] if len(calendly_api_key) > 8 else ''}")
-
-    # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key format looks valid
-    if calendly_api_key:
-        logger.warning("TEMPORARY: Skipping actual API validation and proceeding with mock data")
-        account_name = "Calendly Test User"
-        account_id = "user_test123"
+    try:
+        # Use the authenticated user's ID if available, otherwise default to 1 for demo
+        # IMPORTANT: Use INTEGER for user_id to match INTEGER type in database
+        user_id = current_user.id if current_user else 1  # Changed back to integer 1 to match INTEGER in database
         
-        # Check if this integration already exists for the user
-        # Try to query with user_id, but handle case where column may not exist yet
-        try:
-            # Try with user_id filter
-            existing_integration = db.query(Integration).filter(
-                Integration.user_id == user_id,
-                Integration.platform == "calendly"
-            ).first()
-            
-            logger.info(f"Queried integrations with user_id filter: {existing_integration}")
-        except Exception as user_id_error:
-            # Fallback: if user_id column doesn't exist, just filter by platform
-            logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
-            existing_integration = db.query(Integration).filter(
-                Integration.platform == "calendly"
-            ).first()
-            
-            logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
+        logger.info(f"Connecting Calendly via API key for user {user_id}")
         
-        now = datetime.utcnow()
-        
-        if existing_integration:
-            # Update existing integration
-            existing_integration.auth_type = IntegrationAuthType.API_KEY
-            existing_integration.access_token = None
-            existing_integration.account_name = account_name
-            existing_integration.account_id = account_id
-            existing_integration.extra_data = {
-                "api_key": calendly_api_key,
-                "user_data": {"name": account_name, "id": account_id}
-            }
-            
-            # Try to set user_id if the column exists
-            try:
-                existing_integration.user_id = user_id
-            except Exception:
-                logger.warning(f"Could not set user_id on integration - column may not exist yet")
-                
-            existing_integration.last_sync = now
-            existing_integration.status = IntegrationStatus.CONNECTED
-            logger.info(f"Updated existing Calendly integration for user {user_id}")
-        else:
-            # Create new integration
-            try:
-                new_integration = Integration(
-                    user_id=user_id,
-                    platform="calendly",
-                    auth_type=IntegrationAuthType.API_KEY,
-                    account_name=account_name,
-                    account_id=account_id,
-                    extra_data={
-                        "api_key": calendly_api_key,
-                        "user_data": {"name": account_name, "id": account_id}
-                    },
-                    last_sync=now,
-                    status=IntegrationStatus.CONNECTED
-                )
-            except Exception as create_error:
-                # If user_id column doesn't exist, try creating without it
-                logger.warning(f"Error creating integration with user_id: {str(create_error)}")
-                new_integration = Integration(
-                    platform="calendly",
-                    auth_type=IntegrationAuthType.API_KEY,
-                    account_name=account_name,
-                    account_id=account_id,
-                    extra_data={
-                        "api_key": calendly_api_key,
-                        "user_data": {"name": account_name, "id": account_id}
-                    },
-                    last_sync=now,
-                    status=IntegrationStatus.CONNECTED
-                )
-            
-            db.add(new_integration)
-            logger.info(f"Created new Calendly integration for user {user_id}")
-        
-        try:
-            db.commit()
-        except Exception as commit_error:
-            logger.error(f"Error committing integration: {str(commit_error)}")
-            db.rollback()
+        if "api_key" not in api_key:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error saving integration: {str(commit_error)}"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="API key is required"
             )
         
-        return {"status": "success", "account_name": account_name}
+        calendly_api_key = api_key["api_key"].strip()
+        logger.info(f"Received API key: {calendly_api_key[:4]}...{calendly_api_key[-4:] if len(calendly_api_key) > 8 else ''}")
+
+        # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key format looks valid
+        if calendly_api_key:
+            logger.warning("TEMPORARY: Skipping actual API validation and proceeding with mock data")
+            account_name = "Calendly Test User"
+            account_id = "user_test123"
+            
+            # Create a new session for database operations
+            with SessionLocal() as session:
+                # Check if this integration already exists for the user
+                # Try to query with user_id, but handle case where column may not exist yet
+                existing_integration = None
+                try:
+                    # Try with user_id filter
+                    existing_integration = session.query(Integration).filter(
+                        Integration.user_id == user_id,
+                        Integration.platform == "calendly"
+                    ).first()
+                    
+                    logger.info(f"Queried integrations with user_id filter: {existing_integration}")
+                except Exception as user_id_error:
+                    # Fallback: if user_id column doesn't exist, just filter by platform
+                    logger.warning(f"Error querying by user_id (may not exist yet): {str(user_id_error)}")
+                    session.rollback()  # Important: roll back the transaction
+                    
+                    try:
+                        existing_integration = session.query(Integration).filter(
+                            Integration.platform == "calendly"
+                        ).first()
+                        
+                        logger.info(f"Queried integrations with platform-only filter: {existing_integration}")
+                    except Exception as platform_query_error:
+                        logger.error(f"Error querying by platform: {str(platform_query_error)}")
+                        session.rollback()
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Database error: {str(platform_query_error)}"
+                        )
+                
+                now = datetime.utcnow()
+                
+                try:
+                    if existing_integration:
+                        # Update existing integration
+                        existing_integration.auth_type = IntegrationAuthType.API_KEY
+                        existing_integration.access_token = None
+                        existing_integration.account_name = account_name
+                        existing_integration.account_id = account_id
+                        existing_integration.extra_data = {
+                            "api_key": calendly_api_key,
+                            "user_data": {"name": account_name, "id": account_id}
+                        }
+                        
+                        # Try to set user_id if the column exists
+                        try:
+                            existing_integration.user_id = user_id
+                        except Exception as user_id_error:
+                            logger.warning(f"Could not set user_id on integration - column may not exist yet: {str(user_id_error)}")
+                            # Continue without setting user_id
+                            
+                        existing_integration.last_sync = now
+                        existing_integration.status = IntegrationStatus.CONNECTED
+                        logger.info(f"Updated existing Calendly integration for user {user_id}")
+                    else:
+                        # Create new integration
+                        try:
+                            new_integration = Integration(
+                                user_id=user_id,
+                                platform="calendly",
+                                auth_type=IntegrationAuthType.API_KEY,
+                                account_name=account_name,
+                                account_id=account_id,
+                                extra_data={
+                                    "api_key": calendly_api_key,
+                                    "user_data": {"name": account_name, "id": account_id}
+                                },
+                                last_sync=now,
+                                status=IntegrationStatus.CONNECTED
+                            )
+                        except Exception as create_error:
+                            # If user_id column doesn't exist, try creating without it
+                            logger.warning(f"Error creating integration with user_id: {str(create_error)}")
+                            session.rollback()
+                            
+                            new_integration = Integration(
+                                platform="calendly",
+                                auth_type=IntegrationAuthType.API_KEY,
+                                account_name=account_name,
+                                account_id=account_id,
+                                extra_data={
+                                    "api_key": calendly_api_key,
+                                    "user_data": {"name": account_name, "id": account_id}
+                                },
+                                last_sync=now,
+                                status=IntegrationStatus.CONNECTED
+                            )
+                        
+                        session.add(new_integration)
+                        logger.info(f"Created new Calendly integration for user {user_id}")
+                    
+                    # Commit the transaction
+                    session.commit()
+                    logger.info("Successfully saved Calendly integration to database")
+                except Exception as db_operation_error:
+                    logger.error(f"Error during database operation: {str(db_operation_error)}")
+                    session.rollback()
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Error saving integration: {str(db_operation_error)}"
+                    )
+            
+            return {"status": "success", "account_name": account_name}
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in connect_calendly_api_key: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error: {str(e)}"
+        )
