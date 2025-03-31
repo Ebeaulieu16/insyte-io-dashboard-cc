@@ -718,12 +718,38 @@ def connect_stripe_api_key(
         # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key starts with sk_
         if stripe_api_key.startswith("sk_"):
             logger.warning("TEMPORARY: Skipping actual API validation and proceeding with valid connection")
-            account_name = "Your Stripe Account"  # Changed from "Stripe Test Account"
+            account_name = "Your Stripe Account"
             account_id = "acct_" + stripe_api_key[-8:]  # Use part of API key to make unique
             
             # Create a new session for database operations
             with SessionLocal() as session:
                 try:
+                    # First, check what columns actually exist in the integrations table
+                    table_info = {}
+                    try:
+                        # Get column information
+                        columns_result = session.execute(text(
+                            "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations'"
+                        ))
+                        existing_columns = [row[0] for row in columns_result]
+                        logger.info(f"Existing columns in integrations table: {existing_columns}")
+                        
+                        # Store which columns exist
+                        table_info = {
+                            'has_status': 'status' in existing_columns,
+                            'has_is_connected': 'is_connected' in existing_columns
+                        }
+                        
+                        logger.info(f"Table info: {table_info}")
+                    except Exception as e:
+                        logger.warning(f"Could not get table schema: {str(e)}")
+                        session.rollback()
+                        # Assume columns for maximum compatibility
+                        table_info = {
+                            'has_status': False,
+                            'has_is_connected': True
+                        }
+                    
                     # Simplified approach - check if integration exists
                     result = session.execute(
                         text("SELECT id FROM integrations WHERE platform = :platform"),
@@ -732,17 +758,22 @@ def connect_stripe_api_key(
                     existing_row = result.fetchone()
                     
                     if existing_row:
-                        # Update existing integration with simplified query
-                        # Always explicitly set is_connected to TRUE
+                        # Update existing integration with only columns that exist
+                        update_sql = """
+                            UPDATE integrations 
+                            SET account_name = :account_name, 
+                                account_id = :account_id"""
+                        
+                        if table_info['has_is_connected']:
+                            update_sql += ", is_connected = TRUE"
+                            
+                        if table_info['has_status']:
+                            update_sql += ", status = 'connected'"
+                            
+                        update_sql += " WHERE id = :id"
+                        
                         session.execute(
-                            text("""
-                                UPDATE integrations 
-                                SET account_name = :account_name, 
-                                    account_id = :account_id, 
-                                    is_connected = TRUE,
-                                    status = 'connected'
-                                WHERE id = :id
-                            """),
+                            text(update_sql),
                             {
                                 "id": existing_row[0],
                                 "account_name": account_name,
@@ -751,21 +782,33 @@ def connect_stripe_api_key(
                         )
                         logger.info(f"Updated existing Stripe integration (ID: {existing_row[0]})")
                     else:
-                        # Insert new integration with simplified query
-                        # Ensure is_connected is explicitly set to TRUE
-                        session.execute(
-                            text("""
-                                INSERT INTO integrations 
-                                (platform, account_name, account_id, is_connected, status) 
-                                VALUES 
-                                (:platform, :account_name, :account_id, TRUE, 'connected')
-                            """),
-                            {
-                                "platform": "stripe",
-                                "account_name": account_name,
-                                "account_id": account_id
-                            }
-                        )
+                        # Insert new integration with only columns that exist
+                        insert_columns = ["platform", "account_name", "account_id"]
+                        insert_values = [":platform", ":account_name", ":account_id"]
+                        insert_params = {
+                            "platform": "stripe",
+                            "account_name": account_name,
+                            "account_id": account_id
+                        }
+                        
+                        # Add optional columns if they exist
+                        if table_info['has_is_connected']:
+                            insert_columns.append("is_connected")
+                            insert_values.append("TRUE")
+                            
+                        if table_info['has_status']:
+                            insert_columns.append("status")
+                            insert_values.append("'connected'")
+                            
+                        # Build the SQL statement
+                        insert_sql = f"""
+                            INSERT INTO integrations 
+                            ({', '.join(insert_columns)})
+                            VALUES 
+                            ({', '.join(insert_values)})
+                        """
+                        
+                        session.execute(text(insert_sql), insert_params)
                         logger.info("Created new Stripe integration")
                     
                     # Commit the transaction
@@ -774,9 +817,23 @@ def connect_stripe_api_key(
                     
                     # Debug: Log current state of the integrations table
                     try:
-                        rows = session.execute(text("SELECT id, platform, account_name, is_connected, status FROM integrations")).fetchall()
+                        debug_sql = "SELECT id, platform, account_name"
+                        if table_info['has_is_connected']:
+                            debug_sql += ", is_connected"
+                        if table_info['has_status']:
+                            debug_sql += ", status"
+                        debug_sql += " FROM integrations"
+                        
+                        rows = session.execute(text(debug_sql)).fetchall()
                         for row in rows:
-                            logger.info(f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}, connected={row[3]}, status={row[4]}")
+                            log_message = f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}"
+                            idx = 3
+                            if table_info['has_is_connected']:
+                                log_message += f", connected={row[idx]}"
+                                idx += 1
+                            if table_info['has_status']:
+                                log_message += f", status={row[idx]}"
+                            logger.info(log_message)
                     except Exception as debug_e:
                         logger.warning(f"Debug query failed: {str(debug_e)}")
                         
@@ -860,6 +917,32 @@ def connect_youtube_api_key(
             # Create a new session for database operations
             with SessionLocal() as session:
                 try:
+                    # First, check what columns actually exist in the integrations table
+                    table_info = {}
+                    try:
+                        # Get column information
+                        columns_result = session.execute(text(
+                            "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations'"
+                        ))
+                        existing_columns = [row[0] for row in columns_result]
+                        logger.info(f"Existing columns in integrations table: {existing_columns}")
+                        
+                        # Store which columns exist
+                        table_info = {
+                            'has_status': 'status' in existing_columns,
+                            'has_is_connected': 'is_connected' in existing_columns
+                        }
+                        
+                        logger.info(f"Table info: {table_info}")
+                    except Exception as e:
+                        logger.warning(f"Could not get table schema: {str(e)}")
+                        session.rollback()
+                        # Assume columns for maximum compatibility
+                        table_info = {
+                            'has_status': False,
+                            'has_is_connected': True
+                        }
+                    
                     # Simplified approach - check if integration exists
                     result = session.execute(
                         text("SELECT id FROM integrations WHERE platform = :platform"),
@@ -868,17 +951,22 @@ def connect_youtube_api_key(
                     existing_row = result.fetchone()
                     
                     if existing_row:
-                        # Update existing integration with simplified query
-                        # Always explicitly set is_connected to TRUE
+                        # Update existing integration with only columns that exist
+                        update_sql = """
+                            UPDATE integrations 
+                            SET account_name = :account_name, 
+                                account_id = :account_id"""
+                        
+                        if table_info['has_is_connected']:
+                            update_sql += ", is_connected = TRUE"
+                            
+                        if table_info['has_status']:
+                            update_sql += ", status = 'connected'"
+                            
+                        update_sql += " WHERE id = :id"
+                        
                         session.execute(
-                            text("""
-                                UPDATE integrations 
-                                SET account_name = :account_name, 
-                                    account_id = :account_id, 
-                                    is_connected = TRUE,
-                                    status = 'connected'
-                                WHERE id = :id
-                            """),
+                            text(update_sql),
                             {
                                 "id": existing_row[0],
                                 "account_name": channel_name,
@@ -887,21 +975,33 @@ def connect_youtube_api_key(
                         )
                         logger.info(f"Updated existing YouTube integration (ID: {existing_row[0]})")
                     else:
-                        # Insert new integration with simplified query
-                        # Ensure is_connected is explicitly set to TRUE
-                        session.execute(
-                            text("""
-                                INSERT INTO integrations 
-                                (platform, account_name, account_id, is_connected, status) 
-                                VALUES 
-                                (:platform, :account_name, :account_id, TRUE, 'connected')
-                            """),
-                            {
-                                "platform": "youtube",
-                                "account_name": channel_name,
-                                "account_id": channel_id
-                            }
-                        )
+                        # Insert new integration with only columns that exist
+                        insert_columns = ["platform", "account_name", "account_id"]
+                        insert_values = [":platform", ":account_name", ":account_id"]
+                        insert_params = {
+                            "platform": "youtube",
+                            "account_name": channel_name,
+                            "account_id": channel_id
+                        }
+                        
+                        # Add optional columns if they exist
+                        if table_info['has_is_connected']:
+                            insert_columns.append("is_connected")
+                            insert_values.append("TRUE")
+                            
+                        if table_info['has_status']:
+                            insert_columns.append("status")
+                            insert_values.append("'connected'")
+                            
+                        # Build the SQL statement
+                        insert_sql = f"""
+                            INSERT INTO integrations 
+                            ({', '.join(insert_columns)})
+                            VALUES 
+                            ({', '.join(insert_values)})
+                        """
+                        
+                        session.execute(text(insert_sql), insert_params)
                         logger.info("Created new YouTube integration")
                     
                     # Commit the transaction
@@ -910,9 +1010,23 @@ def connect_youtube_api_key(
                     
                     # Debug: Log current state of the integrations table
                     try:
-                        rows = session.execute(text("SELECT id, platform, account_name, is_connected, status FROM integrations")).fetchall()
+                        debug_sql = "SELECT id, platform, account_name"
+                        if table_info['has_is_connected']:
+                            debug_sql += ", is_connected"
+                        if table_info['has_status']:
+                            debug_sql += ", status"
+                        debug_sql += " FROM integrations"
+                        
+                        rows = session.execute(text(debug_sql)).fetchall()
                         for row in rows:
-                            logger.info(f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}, connected={row[3]}, status={row[4]}")
+                            log_message = f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}"
+                            idx = 3
+                            if table_info['has_is_connected']:
+                                log_message += f", connected={row[idx]}"
+                                idx += 1
+                            if table_info['has_status']:
+                                log_message += f", status={row[idx]}"
+                            logger.info(log_message)
                     except Exception as debug_e:
                         logger.warning(f"Debug query failed: {str(debug_e)}")
                         
@@ -981,12 +1095,38 @@ def connect_calendly_api_key(
         # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key format looks valid
         if calendly_api_key:
             logger.warning("TEMPORARY: Skipping actual API validation and proceeding with valid connection")
-            account_name = "Your Calendly Account"  # Changed from "Calendly Test User"
+            account_name = "Your Calendly Account"
             account_id = "user_" + calendly_api_key[-8:] if len(calendly_api_key) >= 8 else "user_calendly"
             
             # Create a new session for database operations
             with SessionLocal() as session:
                 try:
+                    # First, check what columns actually exist in the integrations table
+                    table_info = {}
+                    try:
+                        # Get column information
+                        columns_result = session.execute(text(
+                            "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations'"
+                        ))
+                        existing_columns = [row[0] for row in columns_result]
+                        logger.info(f"Existing columns in integrations table: {existing_columns}")
+                        
+                        # Store which columns exist
+                        table_info = {
+                            'has_status': 'status' in existing_columns,
+                            'has_is_connected': 'is_connected' in existing_columns
+                        }
+                        
+                        logger.info(f"Table info: {table_info}")
+                    except Exception as e:
+                        logger.warning(f"Could not get table schema: {str(e)}")
+                        session.rollback()
+                        # Assume columns for maximum compatibility
+                        table_info = {
+                            'has_status': False,
+                            'has_is_connected': True
+                        }
+                    
                     # Simplified approach - check if integration exists
                     result = session.execute(
                         text("SELECT id FROM integrations WHERE platform = :platform"),
@@ -995,17 +1135,22 @@ def connect_calendly_api_key(
                     existing_row = result.fetchone()
                     
                     if existing_row:
-                        # Update existing integration with simplified query
-                        # Always explicitly set is_connected to TRUE
+                        # Update existing integration with only columns that exist
+                        update_sql = """
+                            UPDATE integrations 
+                            SET account_name = :account_name, 
+                                account_id = :account_id"""
+                        
+                        if table_info['has_is_connected']:
+                            update_sql += ", is_connected = TRUE"
+                            
+                        if table_info['has_status']:
+                            update_sql += ", status = 'connected'"
+                            
+                        update_sql += " WHERE id = :id"
+                        
                         session.execute(
-                            text("""
-                                UPDATE integrations 
-                                SET account_name = :account_name, 
-                                    account_id = :account_id, 
-                                    is_connected = TRUE,
-                                    status = 'connected'
-                                WHERE id = :id
-                            """),
+                            text(update_sql),
                             {
                                 "id": existing_row[0],
                                 "account_name": account_name,
@@ -1014,21 +1159,33 @@ def connect_calendly_api_key(
                         )
                         logger.info(f"Updated existing Calendly integration (ID: {existing_row[0]})")
                     else:
-                        # Insert new integration with simplified query
-                        # Ensure is_connected is explicitly set to TRUE
-                        session.execute(
-                            text("""
-                                INSERT INTO integrations 
-                                (platform, account_name, account_id, is_connected, status) 
-                                VALUES 
-                                (:platform, :account_name, :account_id, TRUE, 'connected')
-                            """),
-                            {
-                                "platform": "calendly",
-                                "account_name": account_name,
-                                "account_id": account_id
-                            }
-                        )
+                        # Insert new integration with only columns that exist
+                        insert_columns = ["platform", "account_name", "account_id"]
+                        insert_values = [":platform", ":account_name", ":account_id"]
+                        insert_params = {
+                            "platform": "calendly",
+                            "account_name": account_name,
+                            "account_id": account_id
+                        }
+                        
+                        # Add optional columns if they exist
+                        if table_info['has_is_connected']:
+                            insert_columns.append("is_connected")
+                            insert_values.append("TRUE")
+                            
+                        if table_info['has_status']:
+                            insert_columns.append("status")
+                            insert_values.append("'connected'")
+                            
+                        # Build the SQL statement
+                        insert_sql = f"""
+                            INSERT INTO integrations 
+                            ({', '.join(insert_columns)})
+                            VALUES 
+                            ({', '.join(insert_values)})
+                        """
+                        
+                        session.execute(text(insert_sql), insert_params)
                         logger.info("Created new Calendly integration")
                     
                     # Commit the transaction
@@ -1037,9 +1194,23 @@ def connect_calendly_api_key(
                     
                     # Debug: Log current state of the integrations table
                     try:
-                        rows = session.execute(text("SELECT id, platform, account_name, is_connected, status FROM integrations")).fetchall()
+                        debug_sql = "SELECT id, platform, account_name"
+                        if table_info['has_is_connected']:
+                            debug_sql += ", is_connected"
+                        if table_info['has_status']:
+                            debug_sql += ", status"
+                        debug_sql += " FROM integrations"
+                        
+                        rows = session.execute(text(debug_sql)).fetchall()
                         for row in rows:
-                            logger.info(f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}, connected={row[3]}, status={row[4]}")
+                            log_message = f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}"
+                            idx = 3
+                            if table_info['has_is_connected']:
+                                log_message += f", connected={row[idx]}"
+                                idx += 1
+                            if table_info['has_status']:
+                                log_message += f", status={row[idx]}"
+                            logger.info(log_message)
                     except Exception as debug_e:
                         logger.warning(f"Debug query failed: {str(debug_e)}")
                         
@@ -1108,12 +1279,38 @@ def connect_calcom_api_key(
         # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key looks valid
         if calcom_api_key.startswith("cal_"):
             logger.warning("TEMPORARY: Skipping actual API validation and proceeding with valid connection")
-            account_name = "Your Cal.com Account" # Changed from "Cal.com Test User"
+            account_name = "Your Cal.com Account"
             account_id = "user_" + calcom_api_key[-8:] if len(calcom_api_key) >= 8 else "user_calcom"
             
             # Create a new session for database operations
             with SessionLocal() as session:
                 try:
+                    # First, check what columns actually exist in the integrations table
+                    table_info = {}
+                    try:
+                        # Get column information
+                        columns_result = session.execute(text(
+                            "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations'"
+                        ))
+                        existing_columns = [row[0] for row in columns_result]
+                        logger.info(f"Existing columns in integrations table: {existing_columns}")
+                        
+                        # Store which columns exist
+                        table_info = {
+                            'has_status': 'status' in existing_columns,
+                            'has_is_connected': 'is_connected' in existing_columns
+                        }
+                        
+                        logger.info(f"Table info: {table_info}")
+                    except Exception as e:
+                        logger.warning(f"Could not get table schema: {str(e)}")
+                        session.rollback()
+                        # Assume columns for maximum compatibility
+                        table_info = {
+                            'has_status': False,
+                            'has_is_connected': True
+                        }
+                    
                     # Simplified approach - check if integration exists
                     result = session.execute(
                         text("SELECT id FROM integrations WHERE platform = :platform"),
@@ -1122,17 +1319,22 @@ def connect_calcom_api_key(
                     existing_row = result.fetchone()
                     
                     if existing_row:
-                        # Update existing integration with simplified query
-                        # Always explicitly set is_connected to TRUE
+                        # Update existing integration with only columns that exist
+                        update_sql = """
+                            UPDATE integrations 
+                            SET account_name = :account_name, 
+                                account_id = :account_id"""
+                        
+                        if table_info['has_is_connected']:
+                            update_sql += ", is_connected = TRUE"
+                            
+                        if table_info['has_status']:
+                            update_sql += ", status = 'connected'"
+                            
+                        update_sql += " WHERE id = :id"
+                        
                         session.execute(
-                            text("""
-                                UPDATE integrations 
-                                SET account_name = :account_name, 
-                                    account_id = :account_id, 
-                                    is_connected = TRUE,
-                                    status = 'connected'
-                                WHERE id = :id
-                            """),
+                            text(update_sql),
                             {
                                 "id": existing_row[0],
                                 "account_name": account_name,
@@ -1141,21 +1343,33 @@ def connect_calcom_api_key(
                         )
                         logger.info(f"Updated existing Cal.com integration (ID: {existing_row[0]})")
                     else:
-                        # Insert new integration with simplified query
-                        # Ensure is_connected is explicitly set to TRUE
-                        session.execute(
-                            text("""
-                                INSERT INTO integrations 
-                                (platform, account_name, account_id, is_connected, status) 
-                                VALUES 
-                                (:platform, :account_name, :account_id, TRUE, 'connected')
-                            """),
-                            {
-                                "platform": "calcom",
-                                "account_name": account_name,
-                                "account_id": account_id
-                            }
-                        )
+                        # Insert new integration with only columns that exist
+                        insert_columns = ["platform", "account_name", "account_id"]
+                        insert_values = [":platform", ":account_name", ":account_id"]
+                        insert_params = {
+                            "platform": "calcom",
+                            "account_name": account_name,
+                            "account_id": account_id
+                        }
+                        
+                        # Add optional columns if they exist
+                        if table_info['has_is_connected']:
+                            insert_columns.append("is_connected")
+                            insert_values.append("TRUE")
+                            
+                        if table_info['has_status']:
+                            insert_columns.append("status")
+                            insert_values.append("'connected'")
+                            
+                        # Build the SQL statement
+                        insert_sql = f"""
+                            INSERT INTO integrations 
+                            ({', '.join(insert_columns)})
+                            VALUES 
+                            ({', '.join(insert_values)})
+                        """
+                        
+                        session.execute(text(insert_sql), insert_params)
                         logger.info("Created new Cal.com integration")
                     
                     # Commit the transaction
@@ -1164,9 +1378,23 @@ def connect_calcom_api_key(
                     
                     # Debug: Log current state of the integrations table
                     try:
-                        rows = session.execute(text("SELECT id, platform, account_name, is_connected, status FROM integrations")).fetchall()
+                        debug_sql = "SELECT id, platform, account_name"
+                        if table_info['has_is_connected']:
+                            debug_sql += ", is_connected"
+                        if table_info['has_status']:
+                            debug_sql += ", status"
+                        debug_sql += " FROM integrations"
+                        
+                        rows = session.execute(text(debug_sql)).fetchall()
                         for row in rows:
-                            logger.info(f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}, connected={row[3]}, status={row[4]}")
+                            log_message = f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}"
+                            idx = 3
+                            if table_info['has_is_connected']:
+                                log_message += f", connected={row[idx]}"
+                                idx += 1
+                            if table_info['has_status']:
+                                log_message += f", status={row[idx]}"
+                            logger.info(log_message)
                     except Exception as debug_e:
                         logger.warning(f"Debug query failed: {str(debug_e)}")
                         
