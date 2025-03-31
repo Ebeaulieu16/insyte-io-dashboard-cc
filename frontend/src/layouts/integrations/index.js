@@ -6,7 +6,7 @@
 
 */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 // @mui material components
@@ -57,6 +57,8 @@ function Integrations() {
   // Local state for UI
   const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stableLoading, setStableLoading] = useState(true);
+  const loadingTimeoutRef = useRef(null);
   const [alert, setAlert] = useState({ show: false, message: "", severity: "info" });
   const [isDemo, setIsDemo] = useState(false);
   const [calcomApiKey, setCalcomApiKey] = useState("");
@@ -65,12 +67,42 @@ function Integrations() {
   const [stripeApiKey, setStripeApiKey] = useState("");
   const [calendlyApiKey, setCalendlyApiKey] = useState("");
 
+  // Enhanced debounce loading state changes to prevent UI flashing
+  useEffect(() => {
+    // If loading becomes true, update stableLoading immediately
+    if (loading) {
+      setStableLoading(true);
+      // Clear any pending timeout that would set stableLoading to false
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    } else {
+      // If loading becomes false, delay updating stableLoading
+      // This prevents "flickering" when loading state changes rapidly
+      loadingTimeoutRef.current = setTimeout(() => {
+        setStableLoading(false);
+        loadingTimeoutRef.current = null;
+      }, 500); // Longer delay to ensure stability
+    }
+    
+    return () => {
+      // Cleanup timeout on component unmount or when loading changes
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [loading]);
+
   // When the integration context updates, update our local state
   useEffect(() => {
-    // Always update the loading state, even if no integrations are available
+    console.log("Context loading state changed:", contextLoading);
+    
+    // Update the raw loading state, the effect above will debounce it
     setLoading(contextLoading);
     
     if (contextIntegrations && contextIntegrations.length > 0) {
+      console.log("Setting integrations from context:", contextIntegrations.length);
       // Map API response to integrations with UI properties
       const formattedIntegrations = contextIntegrations.map(integration => ({
         id: integration.platform,
@@ -87,6 +119,7 @@ function Integrations() {
       
       setIntegrations(formattedIntegrations);
     } else if (!contextLoading) {
+      console.log("Setting default integrations as context has no data");
       // If integrations are empty but loading is complete, set default integrations
       setIntegrations([
         {
@@ -251,8 +284,10 @@ function Integrations() {
         severity: "success"
       });
       
-      // Refresh global integration state
-      refreshIntegrations();
+      // Schedule refresh to happen after UI updates complete
+      setTimeout(() => {
+        refreshIntegrations();
+      }, 300);
     } catch (error) {
       console.error(`Failed to disconnect ${platform}:`, error);
       setAlert({
@@ -323,8 +358,10 @@ function Integrations() {
           severity: "success"
         });
         
-        // Refresh global integration state
-        refreshIntegrations();
+        // Schedule refresh after UI updates are complete
+        setTimeout(() => {
+          refreshIntegrations();
+        }, 300);
       }
     } catch (error) {
       console.error("Error submitting YouTube API key:", error);
@@ -380,8 +417,10 @@ function Integrations() {
       // Clear input
       setStripeApiKey("");
       
-      // Refresh global integration state
-      refreshIntegrations();
+      // Schedule refresh after UI updates are complete
+      setTimeout(() => {
+        refreshIntegrations();
+      }, 300);
     } catch (error) {
       console.error("Failed to connect Stripe:", error);
       setAlert({
@@ -434,8 +473,10 @@ function Integrations() {
       // Clear input
       setCalendlyApiKey("");
       
-      // Refresh global integration state
-      refreshIntegrations();
+      // Schedule refresh after UI updates are complete
+      setTimeout(() => {
+        refreshIntegrations();
+      }, 300);
     } catch (error) {
       console.error("Failed to connect Calendly:", error);
       setAlert({
@@ -488,8 +529,10 @@ function Integrations() {
       // Clear input
       setCalcomApiKey("");
       
-      // Refresh global integration state
-      refreshIntegrations();
+      // Schedule refresh after UI updates are complete
+      setTimeout(() => {
+        refreshIntegrations();
+      }, 300);
     } catch (error) {
       console.error("Failed to connect Cal.com:", error);
       setAlert({
@@ -538,7 +581,7 @@ function Integrations() {
         )}
 
         {/* Loading State */}
-        {loading ? (
+        {stableLoading ? (
           <Card>
             <VuiBox p={3} display="flex" justifyContent="center" alignItems="center" height="200px">
               <VuiTypography variant="button" color="text" fontWeight="regular">

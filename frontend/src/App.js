@@ -16,7 +16,7 @@
 
 */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 // react-router components
 import { Route, Switch, Navigate, useLocation, Redirect } from "react-router-dom";
@@ -62,30 +62,19 @@ import Register from "layouts/authentication/register";
 
 // Route change handler component to refresh integrations on navigation
 function RouteChangeHandler() {
-  const { pathname } = useLocation();
   const { refreshIntegrations } = useIntegration();
-  const [lastRefreshed, setLastRefreshed] = useState('');
+  const hasInitializedRef = useRef(false);
   
-  // Refresh integrations status when route changes, but prevent excessive refreshes
+  // Only refresh once when the application initially loads
   useEffect(() => {
-    // Skip initial render
-    if (!lastRefreshed) {
-      setLastRefreshed(pathname);
-      return;
+    if (!hasInitializedRef.current) {
+      console.log("Initial integration refresh on app startup");
+      setTimeout(() => {
+        refreshIntegrations();
+        hasInitializedRef.current = true;
+      }, 500); // Small delay to ensure components are mounted
     }
-    
-    // Only refresh if navigating to/from the integrations page
-    const isIntegrationsRoute = pathname === '/integrations';
-    const wasIntegrationsRoute = lastRefreshed === '/integrations';
-    
-    if (isIntegrationsRoute || wasIntegrationsRoute) {
-      console.log("Refreshing integrations after route change to:", pathname);
-      refreshIntegrations();
-    }
-    
-    // Update last refreshed path
-    setLastRefreshed(pathname);
-  }, [pathname, refreshIntegrations, lastRefreshed]);
+  }, [refreshIntegrations]);
   
   return null; // This component doesn't render anything
 }
