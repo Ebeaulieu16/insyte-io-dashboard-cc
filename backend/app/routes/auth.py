@@ -486,7 +486,8 @@ async def get_integration_status(
                     'has_status': 'status' in existing_columns,
                     'has_platform': 'platform' in existing_columns,
                     'has_account_name': 'account_name' in existing_columns,
-                    'has_last_sync': 'last_sync' in existing_columns
+                    'has_last_sync': 'last_sync' in existing_columns,
+                    'has_is_connected': 'is_connected' in existing_columns,
                 }
                 
                 logger.info(f"Table info: {table_info}")
@@ -499,7 +500,8 @@ async def get_integration_status(
                     'has_status': False,
                     'has_platform': True,
                     'has_account_name': True,
-                    'has_last_sync': False
+                    'has_last_sync': False,
+                    'has_is_connected': True,
                 }
             
             try:
@@ -511,6 +513,8 @@ async def get_integration_status(
                     select_columns.append("account_name")
                 if table_info.get('has_last_sync', False):
                     select_columns.append("last_sync")
+                if table_info.get('has_is_connected', False):
+                    select_columns.append("is_connected")
                 
                 # Construct the query
                 query = f"SELECT {', '.join(select_columns)} FROM integrations"
@@ -558,7 +562,8 @@ async def get_integration_status(
                     
                     status_entry = {
                         "platform": platform,
-                        "status": status_value
+                        "status": status_value,
+                        "is_connected": integration.get('is_connected', False)
                     }
                     
                     # Add optional fields if they exist
@@ -845,7 +850,12 @@ def connect_stripe_api_key(
                         detail=f"Database error: {str(e)}"
                     )
             
-            return {"status": "success", "account_name": account_name, "is_connected": True}
+            return {
+                "status": "success", 
+                "account_name": account_name, 
+                "is_connected": True,
+                "display_name": "Your Stripe Account"  # Added display_name for frontend
+            }
             
         else:
             raise HTTPException(
@@ -1038,7 +1048,12 @@ def connect_youtube_api_key(
                         detail=f"Database error: {str(e)}"
                     )
             
-            return {"status": "success", "account_name": channel_name, "is_connected": True}
+            return {
+                "status": "success", 
+                "account_name": channel_name, 
+                "is_connected": True,
+                "display_name": channel_name  # Added display_name for frontend
+            }
             
         else:
             raise HTTPException(
@@ -1222,7 +1237,12 @@ def connect_calendly_api_key(
                         detail=f"Database error: {str(e)}"
                     )
             
-            return {"status": "success", "account_name": account_name, "is_connected": True}
+            return {
+                "status": "success", 
+                "account_name": account_name, 
+                "is_connected": True,
+                "display_name": "Your Calendly Account"  # Added display_name for frontend
+            }
             
         else:
             raise HTTPException(
@@ -1406,7 +1426,12 @@ def connect_calcom_api_key(
                         detail=f"Database error: {str(e)}"
                     )
             
-            return {"status": "success", "account_name": account_name, "is_connected": True}
+            return {
+                "status": "success", 
+                "account_name": account_name, 
+                "is_connected": True,
+                "display_name": "Your Cal.com Account"  # Added display_name for frontend
+            }
             
         else:
             raise HTTPException(
