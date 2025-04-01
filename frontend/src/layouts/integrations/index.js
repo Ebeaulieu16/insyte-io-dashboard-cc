@@ -47,9 +47,6 @@ import api, { isBackendAvailable } from "utils/api";
 // Integration context
 import { useIntegration } from "../../context/IntegrationContext";
 
-// Import the new YouTube connection component
-import YouTubeConnectForm from "./components/YouTubeConnectForm";
-
 function Integrations() {
   const { gradients } = colors;
   const { cardContent } = gradients;
@@ -59,6 +56,7 @@ function Integrations() {
   const { 
     integrations: contextIntegrations, 
     loading: contextLoading, 
+    isIntegrationConnected,
     refreshIntegrations,
     addLocalIntegration,
     removeLocalIntegration
@@ -69,15 +67,17 @@ function Integrations() {
   const [loading, setLoading] = useState(true);
   const [stableLoading, setStableLoading] = useState(true);
   const loadingTimeoutRef = useRef(null);
-  const [alert, setAlert] = useState({ show: false, message: "", severity: "info" });
-  const [isDemo, setIsDemo] = useState(false);
-  const [calcomApiKey, setCalcomApiKey] = useState("");
+  const [alert, setAlert] = useState({
+    show: false,
+    message: "",
+    severity: "info" // 'success', 'info', 'warning', 'error'
+  });
+  const [isDemo, setIsDemo] = useState(!isBackendAvailable);
+  const [stripeApiKey, setStripeApiKey] = useState("");
   const [youtubeApiKey, setYoutubeApiKey] = useState("");
   const [youtubeChannelId, setYoutubeChannelId] = useState("");
-  const [stripeApiKey, setStripeApiKey] = useState("");
   const [calendlyApiKey, setCalendlyApiKey] = useState("");
-  const [selectedPlatform, setSelectedPlatform] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [calcomApiKey, setCalcomApiKey] = useState("");
 
   // Enhanced debounce loading state changes to prevent UI flashing
   useEffect(() => {
@@ -593,16 +593,6 @@ function Integrations() {
     }
   };
 
-  const handleOpenModal = (platform) => {
-    setSelectedPlatform(platform);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedPlatform(null);
-    setIsModalOpen(false);
-  };
-
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -749,14 +739,59 @@ function Integrations() {
                         {!integration.connected && (
                           <>
                             {integration.id === "youtube" && (
-                              <VuiButton
-                                color="success"
-                                variant="contained"
-                                fullWidth
-                                onClick={() => handleOpenModal(integration.id)}
-                              >
-                                Connect
-                              </VuiButton>
+                              <form onSubmit={handleYoutubeApiKeySubmit}>
+                                <VuiBox mt={2}>
+                                  <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
+                                    Enter your YouTube API key and Channel ID
+                                  </VuiTypography>
+                                  <TextField
+                                    fullWidth
+                                    placeholder="AIza..."
+                                    variant="outlined"
+                                    value={youtubeApiKey}
+                                    onChange={(e) => setYoutubeApiKey(e.target.value)}
+                                    size="small"
+                                    sx={{
+                                      mb: 2,
+                                      '& .MuiOutlinedInput-root': {
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
+                                        color: 'white'
+                                      }
+                                    }}
+                                  />
+                                  <TextField
+                                    fullWidth
+                                    placeholder="UC..."
+                                    variant="outlined"
+                                    value={youtubeChannelId}
+                                    onChange={(e) => setYoutubeChannelId(e.target.value)}
+                                    size="small"
+                                    sx={{
+                                      mb: 2,
+                                      '& .MuiOutlinedInput-root': {
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
+                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
+                                        color: 'white'
+                                      }
+                                    }}
+                                  />
+                                  <VuiTypography variant="caption" color="info" fontWeight="regular" mb={2} display="block">
+                                    Find your API key in Google Cloud Console under Credentials
+                                  </VuiTypography>
+                                  <VuiButton
+                                    color="success"
+                                    variant="contained"
+                                    fullWidth
+                                    type="submit"
+                                    disabled={loading}
+                                  >
+                                    Connect
+                                  </VuiButton>
+                                </VuiBox>
+                              </form>
                             )}
                             
                             {integration.id === "stripe" && (
@@ -948,74 +983,6 @@ function Integrations() {
                 </Grid>
               </VuiBox>
             </Card>
-
-            {/* YouTube Connect Section */}
-            {selectedPlatform === "youtube" && (
-              <Modal
-                open={isModalOpen}
-                onClose={handleCloseModal}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Card
-                  sx={{
-                    maxWidth: "500px",
-                    width: "100%",
-                    mx: 2,
-                    p: 3,
-                    bgcolor: "info.focus",
-                    border: "none",
-                  }}
-                >
-                  <YouTubeConnectForm 
-                    onConnectionSuccess={(platform, accountName) => {
-                      // Update UI
-                      setIntegrations(prev => 
-                        prev.map(integration => 
-                          integration.id === platform
-                            ? { 
-                                ...integration, 
-                                connected: true, 
-                                status: "Active", 
-                                color: "success",
-                                accountName: accountName
-                              }
-                            : integration
-                        )
-                      );
-                      
-                      // Close modal with slight delay for visual feedback
-                      setTimeout(() => {
-                        handleCloseModal();
-                      }, 300);
-                      
-                      // Show success message
-                      setAlert({
-                        show: true,
-                        message: `Successfully connected ${accountName}`,
-                        severity: "success"
-                      });
-                    }}
-                    onConnectionError={(platform, severity, message, shouldCloseModal = false) => {
-                      // Show error message
-                      setAlert({
-                        show: true,
-                        message: message || `Error connecting ${getPlatformName(platform)}`,
-                        severity: severity || "error"
-                      });
-                      
-                      // Close modal if requested
-                      if (shouldCloseModal) {
-                        handleCloseModal();
-                      }
-                    }}
-                  />
-                </Card>
-              </Modal>
-            )}
           </>
         )}
         
