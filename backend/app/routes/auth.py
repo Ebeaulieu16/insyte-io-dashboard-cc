@@ -524,15 +524,17 @@ async def get_integration_status(
                 # Add WHERE clause if user_id exists and we have a user_id
                 if table_info.get('has_user_id', False):
                     query += " WHERE user_id = :user_id"
+                    logger.info(f"Querying integrations with user_id filter for user {user_id}. Full query: {query}")
                     result = session.execute(text(query), {"user_id": user_id})
-                    logger.info(f"Querying integrations with user_id filter for user {user_id}")
+                    logger.info(f"Executed query with user_id={user_id}")
                 else:
                     # Just get all integrations if we can't filter by user
                     result = session.execute(text(query))
-                    logger.info("Querying all integrations (no user_id filter)")
+                    logger.info(f"Querying all integrations (no user_id filter). Full query: {query}")
                 
                 # Process results
                 rows = result.fetchall()
+                logger.info(f"Found {len(rows)} integrations for user_id={user_id}")
                 for row in rows:
                     # Create dictionary from row - but only with fields we know exist
                     integration_data = {}
@@ -772,10 +774,10 @@ def connect_stripe_api_key(
                             'has_is_connected': True
                         }
                     
-                    # Simplified approach - check if integration exists
+                    # Simplified approach - check if integration exists for this platform AND user
                     result = session.execute(
-                        text("SELECT id FROM integrations WHERE platform = :platform"),
-                        {"platform": "stripe"}
+                        text("SELECT id FROM integrations WHERE platform = :platform AND user_id = :user_id"),
+                        {"platform": "stripe", "user_id": user_id}
                     )
                     existing_row = result.fetchone()
                     
@@ -784,7 +786,8 @@ def connect_stripe_api_key(
                         update_sql = """
                             UPDATE integrations 
                             SET account_name = :account_name, 
-                                account_id = :account_id"""
+                                account_id = :account_id,
+                                user_id = :user_id"""
                         
                         if table_info['has_is_connected']:
                             update_sql += ", is_connected = TRUE"
@@ -799,18 +802,20 @@ def connect_stripe_api_key(
                             {
                                 "id": existing_row[0],
                                 "account_name": account_name,
-                                "account_id": account_id
+                                "account_id": account_id,
+                                "user_id": user_id
                             }
                         )
                         logger.info(f"Updated existing Stripe integration (ID: {existing_row[0]})")
                     else:
                         # Insert new integration with only columns that exist
-                        insert_columns = ["platform", "account_name", "account_id"]
-                        insert_values = [":platform", ":account_name", ":account_id"]
+                        insert_columns = ["platform", "account_name", "account_id", "user_id"]
+                        insert_values = [":platform", ":account_name", ":account_id", ":user_id"]
                         insert_params = {
                             "platform": "stripe",
                             "account_name": account_name,
-                            "account_id": account_id
+                            "account_id": account_id,
+                            "user_id": user_id
                         }
                         
                         # Add optional columns if they exist
@@ -970,10 +975,10 @@ def connect_youtube_api_key(
                             'has_is_connected': True
                         }
                     
-                    # Simplified approach - check if integration exists
+                    # Simplified approach - check if integration exists for this platform AND user
                     result = session.execute(
-                        text("SELECT id FROM integrations WHERE platform = :platform"),
-                        {"platform": "youtube"}
+                        text("SELECT id FROM integrations WHERE platform = :platform AND user_id = :user_id"),
+                        {"platform": "youtube", "user_id": user_id}
                     )
                     existing_row = result.fetchone()
                     
@@ -982,7 +987,8 @@ def connect_youtube_api_key(
                         update_sql = """
                             UPDATE integrations 
                             SET account_name = :account_name, 
-                                account_id = :account_id"""
+                                account_id = :account_id,
+                                user_id = :user_id"""
                         
                         if table_info['has_is_connected']:
                             update_sql += ", is_connected = TRUE"
@@ -997,18 +1003,20 @@ def connect_youtube_api_key(
                             {
                                 "id": existing_row[0],
                                 "account_name": channel_name,
-                                "account_id": channel_id
+                                "account_id": channel_id,
+                                "user_id": user_id
                             }
                         )
                         logger.info(f"Updated existing YouTube integration (ID: {existing_row[0]})")
                     else:
                         # Insert new integration with only columns that exist
-                        insert_columns = ["platform", "account_name", "account_id"]
-                        insert_values = [":platform", ":account_name", ":account_id"]
+                        insert_columns = ["platform", "account_name", "account_id", "user_id"]
+                        insert_values = [":platform", ":account_name", ":account_id", ":user_id"]
                         insert_params = {
                             "platform": "youtube",
                             "account_name": channel_name,
-                            "account_id": channel_id
+                            "account_id": channel_id,
+                            "user_id": user_id
                         }
                         
                         # Add optional columns if they exist
@@ -1159,10 +1167,10 @@ def connect_calendly_api_key(
                             'has_is_connected': True
                         }
                     
-                    # Simplified approach - check if integration exists
+                    # Simplified approach - check if integration exists for this platform AND user
                     result = session.execute(
-                        text("SELECT id FROM integrations WHERE platform = :platform"),
-                        {"platform": "calendly"}
+                        text("SELECT id FROM integrations WHERE platform = :platform AND user_id = :user_id"),
+                        {"platform": "calendly", "user_id": user_id}
                     )
                     existing_row = result.fetchone()
                     
@@ -1171,7 +1179,8 @@ def connect_calendly_api_key(
                         update_sql = """
                             UPDATE integrations 
                             SET account_name = :account_name, 
-                                account_id = :account_id"""
+                                account_id = :account_id,
+                                user_id = :user_id"""
                         
                         if table_info['has_is_connected']:
                             update_sql += ", is_connected = TRUE"
@@ -1186,18 +1195,20 @@ def connect_calendly_api_key(
                             {
                                 "id": existing_row[0],
                                 "account_name": account_name,
-                                "account_id": account_id
+                                "account_id": account_id,
+                                "user_id": user_id
                             }
                         )
                         logger.info(f"Updated existing Calendly integration (ID: {existing_row[0]})")
                     else:
                         # Insert new integration with only columns that exist
-                        insert_columns = ["platform", "account_name", "account_id"]
-                        insert_values = [":platform", ":account_name", ":account_id"]
+                        insert_columns = ["platform", "account_name", "account_id", "user_id"]
+                        insert_values = [":platform", ":account_name", ":account_id", ":user_id"]
                         insert_params = {
                             "platform": "calendly",
                             "account_name": account_name,
-                            "account_id": account_id
+                            "account_id": account_id,
+                            "user_id": user_id
                         }
                         
                         # Add optional columns if they exist
@@ -1348,10 +1359,10 @@ def connect_calcom_api_key(
                             'has_is_connected': True
                         }
                     
-                    # Simplified approach - check if integration exists
+                    # Simplified approach - check if integration exists for this platform AND user
                     result = session.execute(
-                        text("SELECT id FROM integrations WHERE platform = :platform"),
-                        {"platform": "calcom"}
+                        text("SELECT id FROM integrations WHERE platform = :platform AND user_id = :user_id"),
+                        {"platform": "calcom", "user_id": user_id}
                     )
                     existing_row = result.fetchone()
                     
@@ -1360,7 +1371,8 @@ def connect_calcom_api_key(
                         update_sql = """
                             UPDATE integrations 
                             SET account_name = :account_name, 
-                                account_id = :account_id"""
+                                account_id = :account_id,
+                                user_id = :user_id"""
                         
                         if table_info['has_is_connected']:
                             update_sql += ", is_connected = TRUE"
@@ -1375,18 +1387,20 @@ def connect_calcom_api_key(
                             {
                                 "id": existing_row[0],
                                 "account_name": account_name,
-                                "account_id": account_id
+                                "account_id": account_id,
+                                "user_id": user_id
                             }
                         )
                         logger.info(f"Updated existing Cal.com integration (ID: {existing_row[0]})")
                     else:
                         # Insert new integration with only columns that exist
-                        insert_columns = ["platform", "account_name", "account_id"]
-                        insert_values = [":platform", ":account_name", ":account_id"]
+                        insert_columns = ["platform", "account_name", "account_id", "user_id"]
+                        insert_values = [":platform", ":account_name", ":account_id", ":user_id"]
                         insert_params = {
                             "platform": "calcom",
                             "account_name": account_name,
-                            "account_id": account_id
+                            "account_id": account_id,
+                            "user_id": user_id
                         }
                         
                         # Add optional columns if they exist
