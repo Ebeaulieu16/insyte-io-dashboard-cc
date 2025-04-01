@@ -470,39 +470,41 @@ async def get_integration_status(
         from sqlalchemy.sql import text
         
         with SessionLocal() as session:
-            # First, check what columns actually exist in the integrations table
-            table_info = {}
+            # First, check if the integrations table exists and what columns it has
+            # This handles both schema migration scenarios and different database states
+            table_info = {
+                'has_user_id': False,
+                'has_status': False,
+                'has_is_connected': False,
+                'has_account_name': False,
+                'has_last_sync': False
+            }
+            
             try:
-                # Get column information
-                columns_result = session.execute(text(
-                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations'"
-                ))
-                existing_columns = [row[0] for row in columns_result]
-                logger.info(f"Existing columns in integrations table: {existing_columns}")
+                # Check what columns exist in the integrations table
+                columns_query = """
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'integrations' 
+                AND table_schema = 'public'
+                """
+                result = session.execute(text(columns_query))
+                columns = [row[0] for row in result]
                 
-                # Store which columns exist
-                table_info = {
-                    'has_user_id': 'user_id' in existing_columns,
-                    'has_status': 'status' in existing_columns,
-                    'has_platform': 'platform' in existing_columns,
-                    'has_account_name': 'account_name' in existing_columns,
-                    'has_last_sync': 'last_sync' in existing_columns,
-                    'has_is_connected': 'is_connected' in existing_columns,
-                }
+                if 'user_id' in columns:
+                    table_info['has_user_id'] = True
+                if 'status' in columns:
+                    table_info['has_status'] = True
+                if 'is_connected' in columns:
+                    table_info['has_is_connected'] = True
+                if 'account_name' in columns:
+                    table_info['has_account_name'] = True
+                if 'last_sync' in columns:
+                    table_info['has_last_sync'] = True
                 
-                logger.info(f"Table info: {table_info}")
+                logger.info(f"Integration table columns: {table_info}")
             except Exception as e:
-                logger.warning(f"Could not get table schema: {str(e)}")
-                session.rollback()
-                # Assume minimal columns for maximum compatibility
-                table_info = {
-                    'has_user_id': False,
-                    'has_status': False,
-                    'has_platform': True,
-                    'has_account_name': True,
-                    'has_last_sync': False,
-                    'has_is_connected': True,
-                }
+                logger.error(f"Error checking integrations table schema: {str(e)}")
             
             try:
                 # Build a query based on the columns that exist
@@ -536,57 +538,72 @@ async def get_integration_status(
                     integration_data = {}
                     for i, col in enumerate(select_columns):
                         integration_data[col] = row[i]
+                    
+                    # Always include a clear is_connected flag in the response
+                    # This ensures the frontend has consistent data regardless of DB schema
+                    if not 'is_connected' in integration_data:
+                        # If we have status and it's 'connected', set is_connected to True
+                        if 'status' in integration_data and integration_data['status'] == 'connected':
+                            integration_data['is_connected'] = True
+                        else:
+                            integration_data['is_connected'] = False
+                            
                     db_integrations.append(integration_data)
                 
                 logger.info(f"Retrieved {len(db_integrations)} integrations")
-            except Exception as db_error:
-                logger.error(f"Database error fetching integrations: {str(db_error)}")
-                session.rollback()
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Database error: {str(db_error)}"
-                )
+            except Exception as e:
+                logger.error(f"Error querying integrations: {str(e)}")
+                
+        # Return available platforms with their connection status
+        platforms_with_status = []
         
-        # Create status dict with default values
-        status_dict = {platform: {"platform": platform, "status": "disconnected"} for platform in platforms}
+        # For each platform, find its status in db_integrations or set as disconnected
+        for platform in platforms:
+            platform_status = next(
+                (
+                    integration for integration in db_integrations 
+                    if integration.get("platform") == platform
+                ), 
+                None
+            )
+            
+            # Default integration data
+            integration_data = {
+                "platform": platform,
+                "status": "disconnected",
+                "is_connected": False,
+                "account_name": None,
+                "last_sync": None
+            }
+            
+            # Update with data from database if we found the integration
+            if platform_status:
+                # Ensure consistent status and is_connected fields
+                if 'status' in platform_status:
+                    integration_data['status'] = platform_status['status']
+                    # Make sure is_connected is in sync with status
+                    integration_data['is_connected'] = (
+                        platform_status['status'] == 'connected' or 
+                        platform_status.get('is_connected', False)
+                    )
+                elif 'is_connected' in platform_status and platform_status['is_connected']:
+                    integration_data['status'] = 'connected'
+                    integration_data['is_connected'] = True
+                
+                # Copy other fields if they exist
+                if 'account_name' in platform_status:
+                    integration_data['account_name'] = platform_status['account_name']
+                if 'last_sync' in platform_status:
+                    integration_data['last_sync'] = platform_status['last_sync']
+            
+            platforms_with_status.append(integration_data)
         
-        # Update with actual values from DB
-        for integration in db_integrations:
-            try:
-                platform = integration.get('platform')
-                if platform in status_dict:
-                    # Get status - default to "connected" if status column doesn't exist
-                    status_value = integration.get('status', "connected")
-                    if isinstance(status_value, (enum.Enum)):
-                        status_value = status_value.value
-                    
-                    status_entry = {
-                        "platform": platform,
-                        "status": status_value,
-                        "is_connected": integration.get('is_connected', False)
-                    }
-                    
-                    # Add optional fields if they exist
-                    if 'account_name' in integration:
-                        status_entry["account_name"] = integration.get('account_name')
-                    if 'last_sync' in integration:
-                        status_entry["last_sync"] = integration.get('last_sync')
-                    
-                    status_dict[platform] = status_entry
-            except Exception as integration_error:
-                logger.error(f"Error processing integration {integration.get('id', 'unknown')}: {str(integration_error)}")
-                continue
-        
-        # Convert to list and return
-        integrations_list = list(status_dict.values())
-        logger.info(f"Returning status for {len(integrations_list)} integrations")
-        
-        return {"integrations": integrations_list}
+        return {"integrations": platforms_with_status}
     except Exception as e:
-        logger.error(f"Unexpected error in get_integration_status: {str(e)}")
+        logger.error(f"Error in get_integration_status: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving integration status: {str(e)}"
+            detail=f"Failed to get integration status: {str(e)}"
         )
 
 # Helper functions for integration-specific operations

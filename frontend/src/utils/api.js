@@ -6,11 +6,14 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 5000, // Reduced timeout for faster error response
+  timeout: 10000, // Increased timeout for slower connections
 });
 
+// Store API connection status
+const API_STATUS_KEY = 'insyte_api_status';
+
 // Check if backend is available
-let isBackendAvailable = false;
+let isBackendAvailable = localStorage.getItem('backendAvailable') === 'true';
 
 // Try to ping backend once at startup
 const checkBackendAvailability = () => {
@@ -33,11 +36,24 @@ const checkBackendAvailability = () => {
       console.log("Backend is available");
       isBackendAvailable = true;
       localStorage.setItem('backendAvailable', 'true');
+      localStorage.setItem(API_STATUS_KEY, JSON.stringify({
+        available: true,
+        lastConnected: now,
+        errorCount: 0
+      }));
     })
     .catch(() => {
       console.warn("Backend is not available, running in demo mode");
       isBackendAvailable = false;
       localStorage.setItem('backendAvailable', 'false');
+      
+      // Update API status
+      const status = JSON.parse(localStorage.getItem(API_STATUS_KEY) || '{"errorCount":0}');
+      localStorage.setItem(API_STATUS_KEY, JSON.stringify({
+        available: false,
+        lastError: now,
+        errorCount: status.errorCount + 1
+      }));
     })
     .finally(() => {
       localStorage.setItem('backendCheckTime', now.toString());
@@ -59,6 +75,11 @@ api.interceptors.request.use(
     // Add detailed logging for all requests
     console.log(`[API Request] ${config.method.toUpperCase()} ${config.url}`, config.params || {});
     
+    // Special handling for integration endpoints
+    if (config.url && config.url.includes('/api/integrations')) {
+      console.log('[API] Requesting integration data with auth token:', token ? 'Present' : 'Not present');
+    }
+    
     return config;
   },
   (error) => {
@@ -74,6 +95,57 @@ api.interceptors.response.use(
     console.log(`[API Response] ${response.status} ${response.config.method.toUpperCase()} ${response.config.url}`, 
       response.data ? typeof response.data : 'No data');
     
+    // Record successful API connection
+    const now = Date.now();
+    const status = JSON.parse(localStorage.getItem(API_STATUS_KEY) || '{"errorCount":0}');
+    localStorage.setItem(API_STATUS_KEY, JSON.stringify({
+      ...status,
+      available: true,
+      lastConnected: now
+    }));
+    
+    // Special handling for integration status endpoint
+    if (response.config.url && response.config.url.includes("/api/integrations/status")) {
+      // Check if the response has the expected format
+      if (!response.data || !response.data.integrations || !Array.isArray(response.data.integrations)) {
+        console.warn("[API Interceptor] Invalid response format for integration status, providing fallback data");
+        
+        // Try to get integrations from localStorage first
+        const storedIntegrations = localStorage.getItem('insyte_integrations');
+        if (storedIntegrations) {
+          try {
+            const parsedIntegrations = JSON.parse(storedIntegrations);
+            console.log('[API] Using stored integrations as fallback');
+            return {
+              ...response,
+              data: {
+                integrations: parsedIntegrations
+              }
+            };
+          } catch (e) {
+            console.error('[API] Error parsing stored integrations:', e);
+          }
+        }
+        
+        // Return a structured response with default data
+        return {
+          ...response,
+          data: {
+            integrations: [
+              { platform: "youtube", status: "disconnected", account_name: null, last_sync: null, is_connected: false },
+              { platform: "stripe", status: "disconnected", account_name: null, last_sync: null, is_connected: false },
+              { platform: "calendly", status: "disconnected", account_name: null, last_sync: null, is_connected: false },
+              { platform: "calcom", status: "disconnected", account_name: null, last_sync: null, is_connected: false }
+            ]
+          }
+        };
+      }
+      
+      // Store the valid response in localStorage for offline use
+      localStorage.setItem('insyte_integrations_api', JSON.stringify(response.data.integrations));
+      console.log('[API] Stored integration response in localStorage');
+    }
+    
     // Special logging for sales data
     if (response.config.url && response.config.url.includes("/api/sales/data")) {
       console.log("[API] Sales data response:", response.data);
@@ -86,27 +158,6 @@ api.interceptors.response.use(
       
       if (!hasFunnel || !hasMetrics) {
         console.warn("[API] Sales data is missing expected fields");
-      }
-    }
-    
-    // Special handling for integration status endpoint
-    if (response.config.url && response.config.url.includes("/api/integrations/status")) {
-      // Check if the response has the expected format
-      if (!response.data || !response.data.integrations || !Array.isArray(response.data.integrations)) {
-        console.warn("[API Interceptor] Invalid response format for integration status, providing fallback data");
-        
-        // Return a structured response with default data
-        return {
-          ...response,
-          data: {
-            integrations: [
-              { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "calendly", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "calcom", status: "disconnected", account_name: null, last_sync: null }
-            ]
-          }
-        };
       }
     }
     
@@ -125,6 +176,16 @@ api.interceptors.response.use(
       console.error(`[API Error] Request failed: ${error.message}`);
     }
     
+    // Record API error
+    const now = Date.now();
+    const status = JSON.parse(localStorage.getItem(API_STATUS_KEY) || '{"errorCount":0}');
+    localStorage.setItem(API_STATUS_KEY, JSON.stringify({
+      ...status,
+      available: false,
+      lastError: now,
+      errorCount: status.errorCount + 1
+    }));
+    
     // Special handling for certain status codes
     if (error.response) {
       const status = error.response.status;
@@ -136,16 +197,52 @@ api.interceptors.response.use(
       
       // Special handling for integration status endpoint
       if (error.config && error.config.url && error.config.url.includes("/api/integrations/status")) {
-        console.log("[API Interceptor] Integration status API error, returning mock data");
+        console.log("[API Interceptor] Integration status API error, returning stored data");
         
-        // Return mock data for integrations
+        // Try to get integrations from localStorage first
+        const storedIntegrations = localStorage.getItem('insyte_integrations');
+        if (storedIntegrations) {
+          try {
+            const parsedIntegrations = JSON.parse(storedIntegrations);
+            if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
+              console.log('[API] Using stored integrations for API error fallback');
+              return Promise.resolve({
+                data: {
+                  integrations: parsedIntegrations
+                }
+              });
+            }
+          } catch (e) {
+            console.error('[API] Error parsing stored integrations:', e);
+          }
+        }
+        
+        // Fall back to API cached value
+        const apiStoredIntegrations = localStorage.getItem('insyte_integrations_api');
+        if (apiStoredIntegrations) {
+          try {
+            const parsedIntegrations = JSON.parse(apiStoredIntegrations);
+            if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
+              console.log('[API] Using API-cached integrations');
+              return Promise.resolve({
+                data: {
+                  integrations: parsedIntegrations
+                }
+              });
+            }
+          } catch (e) {
+            console.error('[API] Error parsing API cached integrations:', e);
+          }
+        }
+        
+        // Return mock data as last resort
         return Promise.resolve({
           data: {
             integrations: [
-              { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "calendly", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "calcom", status: "disconnected", account_name: null, last_sync: null }
+              { platform: "youtube", status: "disconnected", account_name: null, last_sync: null, is_connected: false },
+              { platform: "stripe", status: "disconnected", account_name: null, last_sync: null, is_connected: false },
+              { platform: "calendly", status: "disconnected", account_name: null, last_sync: null, is_connected: false },
+              { platform: "calcom", status: "disconnected", account_name: null, last_sync: null, is_connected: false }
             ]
           }
         });
@@ -153,7 +250,7 @@ api.interceptors.response.use(
       
       // Handle unauthorized errors (401)
       if (status === 401) {
-        // Redirect to login if unauthorized
+        // Redirect to login if unauthorized but don't clear integrations data
         console.log("Unauthorized API request, redirecting to login");
         // You could dispatch a logout action here or redirect to login
       }

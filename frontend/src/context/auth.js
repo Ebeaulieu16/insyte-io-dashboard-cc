@@ -127,6 +127,11 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    
+    // Keep integration data in localStorage
+    // This way integrations persist across logins
+    console.log("Logging out but preserving integration data");
+    
     toast.info("You have been logged out.");
   };
 

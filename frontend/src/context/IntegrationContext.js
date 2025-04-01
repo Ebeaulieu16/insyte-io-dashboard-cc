@@ -13,14 +13,53 @@ const IntegrationContext = createContext({
   debugIntegrationState: () => {},
 });
 
+// Persistence key for local storage
+const INTEGRATIONS_STORAGE_KEY = 'insyte_integrations';
+const INTEGRATIONS_TIMESTAMP_KEY = 'insyte_integrations_timestamp';
+
 // Context provider component
 export const IntegrationProvider = ({ children }) => {
-  const [integrations, setIntegrations] = useState([]);
+  // Initialize state from local storage if available
+  const getInitialIntegrations = () => {
+    try {
+      const storedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
+      if (storedIntegrations) {
+        console.log('Loaded integrations from local storage');
+        return JSON.parse(storedIntegrations);
+      }
+    } catch (error) {
+      console.error('Failed to load integrations from local storage:', error);
+    }
+    return [];
+  };
+
+  const [integrations, setIntegrations] = useState(getInitialIntegrations());
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const [lastRefreshTime, setLastRefreshTime] = useState(() => {
+    // Initialize from local storage if available
+    const stored = localStorage.getItem(INTEGRATIONS_TIMESTAMP_KEY);
+    return stored ? parseInt(stored, 10) : 0;
+  });
   const fetchInProgressRef = useRef(false); // Track if a fetch is already in progress
   const localIntegrationsRef = useRef({}); // Keep local cache of connected integrations
+
+  // Initialize localIntegrationsRef from integrations if available
+  useEffect(() => {
+    // Populate localIntegrationsRef with any integrations that are already connected
+    if (integrations.length > 0) {
+      integrations.forEach(integration => {
+        if (integration.status === 'connected' || integration.is_connected === true) {
+          localIntegrationsRef.current[integration.platform] = {
+            platform: integration.platform,
+            status: 'connected',
+            account_name: integration.account_name,
+            timestamp: Date.now()
+          };
+        }
+      });
+    }
+  }, []);
 
   // Calculate if any integration is connected
   const isAnyIntegrationConnected = integrations.some(
@@ -38,6 +77,28 @@ export const IntegrationProvider = ({ children }) => {
     // If not found in regular array, check our local cache as a fallback
     return !!localIntegrationsRef.current[platform];
   };
+
+  // Persist integrations to local storage whenever they change
+  useEffect(() => {
+    try {
+      // Don't save empty integrations
+      if (integrations.length > 0) {
+        localStorage.setItem(INTEGRATIONS_STORAGE_KEY, JSON.stringify(integrations));
+        console.log('Saved integrations to local storage');
+      }
+    } catch (error) {
+      console.error('Failed to save integrations to local storage:', error);
+    }
+  }, [integrations]);
+
+  // Persist lastRefreshTime to local storage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(INTEGRATIONS_TIMESTAMP_KEY, lastRefreshTime.toString());
+    } catch (error) {
+      console.error('Failed to save refresh timestamp to local storage:', error);
+    }
+  }, [lastRefreshTime]);
 
   // Function to add a locally connected integration (used when the API call succeeds but before refresh)
   const addLocalIntegration = (platform, accountName) => {
@@ -134,6 +195,7 @@ export const IntegrationProvider = ({ children }) => {
     
     // Log what's in local storage
     console.log("localStorage.token:", localStorage.getItem('token'));
+    console.log("localStorage.integrations:", localStorage.getItem(INTEGRATIONS_STORAGE_KEY));
     console.log("backendAvailable:", localStorage.getItem('backendAvailable'));
     
     // Force a refresh
@@ -203,6 +265,21 @@ export const IntegrationProvider = ({ children }) => {
               console.log('Using cached local integrations instead of API response');
               setIntegrations(localIntegrationsArray);
             } else {
+              // Check local storage before falling back to defaults
+              const storedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
+              if (storedIntegrations) {
+                try {
+                  const parsedIntegrations = JSON.parse(storedIntegrations);
+                  if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
+                    console.log('Using integrations from local storage');
+                    setIntegrations(parsedIntegrations);
+                    return;
+                  }
+                } catch (e) {
+                  console.error('Error parsing stored integrations:', e);
+                }
+              }
+              
               // Fallback for when the API returns a successful response but with no integrations
               console.warn('API returned success but no integrations data, using defaults');
               setIntegrations([
@@ -219,13 +296,30 @@ export const IntegrationProvider = ({ children }) => {
         
         // Check if we have any local integrations before setting defaults
         if (isMounted) {
+          // First try to use our in-memory local integrations
           const localIntegrationsArray = Object.values(localIntegrationsRef.current);
           
           if (localIntegrationsArray.length > 0) {
-            console.log('API error, using cached local integrations');
+            console.log('API error, using cached local integrations from memory');
             setIntegrations(localIntegrationsArray);
           } else {
-            // Set default empty integrations on error
+            // Then try to use local storage
+            const storedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
+            if (storedIntegrations) {
+              try {
+                const parsedIntegrations = JSON.parse(storedIntegrations);
+                if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
+                  console.log('API error, using integrations from local storage');
+                  setIntegrations(parsedIntegrations);
+                  return;
+                }
+              } catch (e) {
+                console.error('Error parsing stored integrations:', e);
+              }
+            }
+            
+            // Finally fall back to defaults
+            console.log('API error, no cached integrations, using defaults');
             setIntegrations([
               { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
               { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
