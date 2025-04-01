@@ -6,7 +6,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // Increased timeout for slower connections
+  timeout: 30000, // Increased timeout for slower connections, especially for YouTube API
 });
 
 // Store API connection status

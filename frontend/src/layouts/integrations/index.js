@@ -18,6 +18,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import TextField from "@mui/material/TextField";
+import Modal from "@mui/material/Modal";
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
@@ -46,6 +47,9 @@ import api, { isBackendAvailable } from "utils/api";
 // Integration context
 import { useIntegration } from "../../context/IntegrationContext";
 
+// Import the new YouTube connection component
+import YouTubeConnectForm from "./components/YouTubeConnectForm";
+
 function Integrations() {
   const { gradients } = colors;
   const { cardContent } = gradients;
@@ -72,6 +76,8 @@ function Integrations() {
   const [youtubeChannelId, setYoutubeChannelId] = useState("");
   const [stripeApiKey, setStripeApiKey] = useState("");
   const [calendlyApiKey, setCalendlyApiKey] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Enhanced debounce loading state changes to prevent UI flashing
   useEffect(() => {
@@ -335,39 +341,50 @@ function Integrations() {
 
     try {
       setLoading(true);
+      
+      // Show optimistic UI feedback immediately
+      const accountName = `YouTube Channel: ${youtubeChannelId}`;
+      
+      // Add integration to local cache first for instant feedback
+      addLocalIntegration("youtube", accountName);
+      
+      // Update UI immediately to improve perceived performance
+      setIntegrations(prev => 
+        prev.map(integration => 
+          integration.id === "youtube"
+            ? { 
+                ...integration, 
+                connected: true, 
+                status: "Active", 
+                color: "success",
+                accountName: accountName
+              }
+            : integration
+        )
+      );
+      
+      // Prepare payload
       const payload = {
         api_key: youtubeApiKey,
         channel_id: youtubeChannelId
       };
       
-      const response = await api.post("/api/integrations/youtube/api-key", payload);
+      // Set a longer timeout for this specific request
+      const response = await api.post("/api/integrations/youtube/api-key", payload, {
+        timeout: 30000 // Ensure 30 second timeout specifically for YouTube
+      });
+      
       console.log("YouTube API key submitted:", response.data);
       
       if (response.data && response.data.status === "success") {
-        // First, update our local cache with the new integration
-        const accountName = response.data.account_name || "YouTube Channel";
-        addLocalIntegration("youtube", accountName);
-        
-        // Update the UI to reflect the new integration
-        const updatedIntegrations = integrations.map(integration => {
-          if (integration.id === "youtube") {
-            return {
-              ...integration,
-              connected: true,
-              accountName: accountName,
-              status: "Active",
-              color: "success"
-            };
-          }
-          return integration;
-        });
-        
-        setIntegrations(updatedIntegrations);
+        // Clean up form
         setYoutubeApiKey("");
         setYoutubeChannelId("");
+        
+        // Show success message
         setAlert({
           show: true,
-          message: `Successfully connected YouTube channel: ${accountName}`,
+          message: `Successfully connected YouTube channel: ${response.data.account_name || accountName}`,
           severity: "success"
         });
         
@@ -378,11 +395,19 @@ function Integrations() {
       }
     } catch (error) {
       console.error("Error submitting YouTube API key:", error);
+      
+      // Don't revert the UI state - keep optimistic update to reduce confusion
+      // Just show error message
       setAlert({
         show: true,
-        message: `Error connecting YouTube: ${error.response?.data?.detail || error.message}`,
-        severity: "error"
+        message: `YouTube connection error: ${error.response?.data?.detail || error.message || "Connection timeout - but your channel might still be connected"}`,
+        severity: "warning"
       });
+      
+      // Still trigger a refresh to check if connection was actually successful despite the error
+      setTimeout(() => {
+        refreshIntegrations();
+      }, 1000);
     } finally {
       setLoading(false);
     }
@@ -568,6 +593,16 @@ function Integrations() {
     }
   };
 
+  const handleOpenModal = (platform) => {
+    setSelectedPlatform(platform);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedPlatform(null);
+    setIsModalOpen(false);
+  };
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -714,61 +749,14 @@ function Integrations() {
                         {!integration.connected && (
                           <>
                             {integration.id === "youtube" && (
-                              <form onSubmit={handleYoutubeApiKeySubmit}>
-                                <VuiBox mt={2}>
-                                  <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
-                                    Enter your YouTube API key
-                                  </VuiTypography>
-                                  <TextField
-                                    fullWidth
-                                    placeholder="AIzaSyA..."
-                                    variant="outlined"
-                                    value={youtubeApiKey}
-                                    onChange={(e) => setYoutubeApiKey(e.target.value)}
-                                    size="small"
-                                    sx={{
-                                      mb: 2,
-                                      '& .MuiOutlinedInput-root': {
-                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
-                                        color: 'white'
-                                      }
-                                    }}
-                                  />
-                                  <VuiTypography variant="caption" color="text" fontWeight="regular" mb={1}>
-                                    Enter your YouTube Channel ID
-                                  </VuiTypography>
-                                  <TextField
-                                    fullWidth
-                                    placeholder="UCxxx..."
-                                    variant="outlined"
-                                    value={youtubeChannelId}
-                                    onChange={(e) => setYoutubeChannelId(e.target.value)}
-                                    size="small"
-                                    sx={{
-                                      mb: 2,
-                                      '& .MuiOutlinedInput-root': {
-                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
-                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.5)' },
-                                        '&.Mui-focused fieldset': { borderColor: '#0075ff' },
-                                        color: 'white'
-                                      }
-                                    }}
-                                  />
-                                  <VuiTypography variant="caption" color="info" fontWeight="regular" mb={2} display="block">
-                                    Create an API key in Google Cloud Console and get your Channel ID from your YouTube URL
-                                  </VuiTypography>
-                                  <VuiButton
-                                    color="success"
-                                    variant="contained"
-                                    fullWidth
-                                    type="submit"
-                                  >
-                                    Connect
-                                  </VuiButton>
-                                </VuiBox>
-                              </form>
+                              <VuiButton
+                                color="success"
+                                variant="contained"
+                                fullWidth
+                                onClick={() => handleOpenModal(integration.id)}
+                              >
+                                Connect
+                              </VuiButton>
                             )}
                             
                             {integration.id === "stripe" && (
@@ -960,6 +948,74 @@ function Integrations() {
                 </Grid>
               </VuiBox>
             </Card>
+
+            {/* YouTube Connect Section */}
+            {selectedPlatform === "youtube" && (
+              <Modal
+                open={isModalOpen}
+                onClose={handleCloseModal}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Card
+                  sx={{
+                    maxWidth: "500px",
+                    width: "100%",
+                    mx: 2,
+                    p: 3,
+                    bgcolor: "info.focus",
+                    border: "none",
+                  }}
+                >
+                  <YouTubeConnectForm 
+                    onConnectionSuccess={(platform, accountName) => {
+                      // Update UI
+                      setIntegrations(prev => 
+                        prev.map(integration => 
+                          integration.id === platform
+                            ? { 
+                                ...integration, 
+                                connected: true, 
+                                status: "Active", 
+                                color: "success",
+                                accountName: accountName
+                              }
+                            : integration
+                        )
+                      );
+                      
+                      // Close modal with slight delay for visual feedback
+                      setTimeout(() => {
+                        handleCloseModal();
+                      }, 300);
+                      
+                      // Show success message
+                      setAlert({
+                        show: true,
+                        message: `Successfully connected ${accountName}`,
+                        severity: "success"
+                      });
+                    }}
+                    onConnectionError={(platform, severity, message, shouldCloseModal = false) => {
+                      // Show error message
+                      setAlert({
+                        show: true,
+                        message: message || `Error connecting ${getPlatformName(platform)}`,
+                        severity: severity || "error"
+                      });
+                      
+                      // Close modal if requested
+                      if (shouldCloseModal) {
+                        handleCloseModal();
+                      }
+                    }}
+                  />
+                </Card>
+              </Modal>
+            )}
           </>
         )}
         

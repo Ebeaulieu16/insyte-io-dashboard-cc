@@ -912,10 +912,6 @@ def connect_youtube_api_key(
     Returns:
         JSON response with connection status
     """
-    # Use a new database session to ensure clean transactions
-    from app.database import SessionLocal
-    from sqlalchemy.sql import text
-    
     try:
         # Use the authenticated user's ID if available, otherwise default to 1 for demo
         user_id = current_user.id if current_user else 1
@@ -937,8 +933,7 @@ def connect_youtube_api_key(
         youtube_api_key = api_data["api_key"].strip()
         channel_id = api_data["channel_id"].strip()
         
-        logger.info(f"Received API key: {youtube_api_key[:4]}...{youtube_api_key[-4:] if len(youtube_api_key) > 8 else ''}")
-        logger.info(f"Received channel ID: {channel_id}")
+        logger.info(f"Processing YouTube connection with key prefix: {youtube_api_key[:4]}... and channel: {channel_id}")
 
         # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key starts with appropriate prefix
         if youtube_api_key.startswith("AIza"):
@@ -946,138 +941,56 @@ def connect_youtube_api_key(
             # Use the channel ID as part of the account name to make it feel more real
             channel_name = f"YouTube Channel: {channel_id}"
             
-            # Create a new session for database operations
-            with SessionLocal() as session:
-                try:
-                    # First, check what columns actually exist in the integrations table
-                    table_info = {}
-                    try:
-                        # Get column information
-                        columns_result = session.execute(text(
-                            "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations'"
-                        ))
-                        existing_columns = [row[0] for row in columns_result]
-                        logger.info(f"Existing columns in integrations table: {existing_columns}")
-                        
-                        # Store which columns exist
-                        table_info = {
-                            'has_status': 'status' in existing_columns,
-                            'has_is_connected': 'is_connected' in existing_columns
-                        }
-                        
-                        logger.info(f"Table info: {table_info}")
-                    except Exception as e:
-                        logger.warning(f"Could not get table schema: {str(e)}")
-                        session.rollback()
-                        # Assume columns for maximum compatibility
-                        table_info = {
-                            'has_status': False,
-                            'has_is_connected': True
-                        }
+            # Fast direct database operations using SQLAlchemy ORM
+            # Check if integration exists for this user and platform
+            existing_integration = db.query(Integration).filter(
+                Integration.platform == "youtube",
+                Integration.user_id == user_id
+            ).first()
+            
+            try:
+                if existing_integration:
+                    # Update existing integration
+                    logger.info(f"Updating existing YouTube integration ID: {existing_integration.id}")
+                    existing_integration.account_name = channel_name
+                    existing_integration.account_id = channel_id
+                    existing_integration.user_id = user_id
+                    existing_integration.status = IntegrationStatus.CONNECTED
                     
-                    # Simplified approach - check if integration exists for this platform AND user
-                    result = session.execute(
-                        text("SELECT id FROM integrations WHERE platform = :platform AND user_id = :user_id"),
-                        {"platform": "youtube", "user_id": user_id}
+                    if hasattr(existing_integration, 'is_connected'):
+                        existing_integration.is_connected = True
+                else:
+                    # Create new integration
+                    logger.info(f"Creating new YouTube integration for user: {user_id}")
+                    new_integration = Integration(
+                        platform="youtube",
+                        account_name=channel_name,
+                        account_id=channel_id,
+                        user_id=user_id,
+                        status=IntegrationStatus.CONNECTED,
+                        auth_type=IntegrationAuthType.API_KEY,
+                        last_sync=datetime.now()
                     )
-                    existing_row = result.fetchone()
-                    
-                    if existing_row:
-                        # Update existing integration with only columns that exist
-                        update_sql = """
-                            UPDATE integrations 
-                            SET account_name = :account_name, 
-                                account_id = :account_id,
-                                user_id = :user_id"""
-                        
-                        if table_info['has_is_connected']:
-                            update_sql += ", is_connected = TRUE"
-                            
-                        if table_info['has_status']:
-                            update_sql += ", status = 'connected'"
-                            
-                        update_sql += " WHERE id = :id"
-                        
-                        session.execute(
-                            text(update_sql),
-                            {
-                                "id": existing_row[0],
-                                "account_name": channel_name,
-                                "account_id": channel_id,
-                                "user_id": user_id
-                            }
-                        )
-                        logger.info(f"Updated existing YouTube integration (ID: {existing_row[0]})")
-                    else:
-                        # Insert new integration with only columns that exist
-                        insert_columns = ["platform", "account_name", "account_id", "user_id"]
-                        insert_values = [":platform", ":account_name", ":account_id", ":user_id"]
-                        insert_params = {
-                            "platform": "youtube",
-                            "account_name": channel_name,
-                            "account_id": channel_id,
-                            "user_id": user_id
-                        }
-                        
-                        # Add optional columns if they exist
-                        if table_info['has_is_connected']:
-                            insert_columns.append("is_connected")
-                            insert_values.append("TRUE")
-                            
-                        if table_info['has_status']:
-                            insert_columns.append("status")
-                            insert_values.append("'connected'")
-                            
-                        # Build the SQL statement
-                        insert_sql = f"""
-                            INSERT INTO integrations 
-                            ({', '.join(insert_columns)})
-                            VALUES 
-                            ({', '.join(insert_values)})
-                        """
-                        
-                        session.execute(text(insert_sql), insert_params)
-                        logger.info("Created new YouTube integration")
-                    
-                    # Commit the transaction
-                    session.commit()
-                    logger.info("Successfully saved YouTube integration to database")
-                    
-                    # Debug: Log current state of the integrations table
-                    try:
-                        debug_sql = "SELECT id, platform, account_name"
-                        if table_info['has_is_connected']:
-                            debug_sql += ", is_connected"
-                        if table_info['has_status']:
-                            debug_sql += ", status"
-                        debug_sql += " FROM integrations"
-                        
-                        rows = session.execute(text(debug_sql)).fetchall()
-                        for row in rows:
-                            log_message = f"Integration: id={row[0]}, platform={row[1]}, account={row[2]}"
-                            idx = 3
-                            if table_info['has_is_connected']:
-                                log_message += f", connected={row[idx]}"
-                                idx += 1
-                            if table_info['has_status']:
-                                log_message += f", status={row[idx]}"
-                            logger.info(log_message)
-                    except Exception as debug_e:
-                        logger.warning(f"Debug query failed: {str(debug_e)}")
-                        
-                except Exception as e:
-                    session.rollback()
-                    logger.error(f"Database error: {str(e)}")
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=f"Database error: {str(e)}"
-                    )
+                    db.add(new_integration)
+                
+                # Commit changes
+                db.commit()
+                logger.info("Successfully saved YouTube integration to database")
+                
+            except Exception as db_error:
+                db.rollback()
+                logger.error(f"Database error during YouTube connection: {str(db_error)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Database error: {str(db_error)}"
+                )
             
             return {
                 "status": "success", 
                 "account_name": channel_name, 
                 "is_connected": True,
-                "display_name": channel_name  # Added display_name for frontend
+                "display_name": channel_name,
+                "message": f"Successfully connected YouTube channel {channel_id}. Your YouTube data will be available shortly."
             }
             
         else:
