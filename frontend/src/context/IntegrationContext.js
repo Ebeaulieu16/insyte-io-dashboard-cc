@@ -10,6 +10,7 @@ const IntegrationContext = createContext({
   refreshIntegrations: () => {},
   addLocalIntegration: () => {},
   removeLocalIntegration: () => {},
+  debugIntegrationState: () => {},
 });
 
 // Context provider component
@@ -113,6 +114,34 @@ export const IntegrationProvider = ({ children }) => {
     } else {
       console.log('Refresh requested too soon or fetch in progress, ignoring');
     }
+  };
+
+  // Debug function to help troubleshoot integration state
+  const debugIntegrationState = () => {
+    console.log("===== INTEGRATION DEBUG INFO =====");
+    console.log("Current integrations state:", integrations);
+    console.log("isAnyIntegrationConnected:", isAnyIntegrationConnected);
+    console.log("localIntegrationsRef:", localIntegrationsRef.current);
+    
+    // Log individual integration statuses
+    if (integrations.length > 0) {
+      integrations.forEach(integration => {
+        console.log(`${integration.platform}: connected=${integration.status === 'connected' || integration.is_connected === true}`);
+      });
+    } else {
+      console.log("No integrations in state");
+    }
+    
+    // Log what's in local storage
+    console.log("localStorage.token:", localStorage.getItem('token'));
+    console.log("backendAvailable:", localStorage.getItem('backendAvailable'));
+    
+    // Force a refresh
+    console.log("Forcing refresh of integration state...");
+    setRefreshTrigger(prev => prev + 1);
+    
+    console.log("================================");
+    return "Debug info logged to console";
   };
 
   // Fetch integrations status on mount and when refresh is triggered
@@ -250,6 +279,7 @@ export const IntegrationProvider = ({ children }) => {
     refreshIntegrations,
     addLocalIntegration,
     removeLocalIntegration,
+    debugIntegrationState,
   };
 
   return (

@@ -56,6 +56,9 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // Add detailed logging for all requests
+    console.log(`[API Request] ${config.method.toUpperCase()} ${config.url}`, config.params || {});
+    
     return config;
   },
   (error) => {
@@ -67,6 +70,25 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   // Success handler - runs on any 2XX response
   (response) => {
+    // Log all successful responses
+    console.log(`[API Response] ${response.status} ${response.config.method.toUpperCase()} ${response.config.url}`, 
+      response.data ? typeof response.data : 'No data');
+    
+    // Special logging for sales data
+    if (response.config.url && response.config.url.includes("/api/sales/data")) {
+      console.log("[API] Sales data response:", response.data);
+      
+      // Verify that the response contains the expected data structure
+      const hasFunnel = response.data && response.data.funnel;
+      const hasMetrics = response.data && response.data.metrics;
+      
+      console.log(`[API] Sales data structure check - Has funnel: ${hasFunnel}, Has metrics: ${hasMetrics}`);
+      
+      if (!hasFunnel || !hasMetrics) {
+        console.warn("[API] Sales data is missing expected fields");
+      }
+    }
+    
     // Special handling for integration status endpoint
     if (response.config.url && response.config.url.includes("/api/integrations/status")) {
       // Check if the response has the expected format
@@ -93,9 +115,24 @@ api.interceptors.response.use(
   
   // Error handler - runs on any non-2XX response
   (error) => {
+    // Log all errors
+    if (error.response) {
+      console.error(`[API Error] ${error.response.status} ${error.config.method.toUpperCase()} ${error.config.url}`, 
+        error.response.data);
+    } else if (error.request) {
+      console.error(`[API Error] No response received for ${error.config.method.toUpperCase()} ${error.config.url}`);
+    } else {
+      console.error(`[API Error] Request failed: ${error.message}`);
+    }
+    
     // Special handling for certain status codes
     if (error.response) {
       const status = error.response.status;
+      
+      // Special handling for sales data endpoint
+      if (error.config && error.config.url && error.config.url.includes("/api/sales/data")) {
+        console.warn("[API Interceptor] Sales data API error, check backend connectivity");
+      }
       
       // Special handling for integration status endpoint
       if (error.config && error.config.url && error.config.url.includes("/api/integrations/status")) {

@@ -64,15 +64,31 @@ function Sales() {
   const { cardContent } = gradients;
   
   // Get integration status from context
-  const { isAnyIntegrationConnected, isIntegrationConnected } = useIntegration();
+  const { 
+    integrations, 
+    isAnyIntegrationConnected, 
+    isIntegrationConnected,
+    debugIntegrationState
+  } = useIntegration();
 
-  // State for charts data
+  // Debug log integration status
+  useEffect(() => {
+    console.log("--- SALES PAGE: Integration Status ---");
+    console.log("isAnyIntegrationConnected:", isAnyIntegrationConnected);
+    console.log("Integrations:", integrations);
+    console.log("Stripe connected:", isIntegrationConnected("stripe"));
+    console.log("YouTube connected:", isIntegrationConnected("youtube"));
+    console.log("-----------------------------------");
+  }, [integrations, isAnyIntegrationConnected, isIntegrationConnected]);
+
+  // State for charts data - update to show clear difference between demo and real data
   const [salesData, setSalesData] = useState({
     funnel: funnelChartData,
-    donut: donutChartData
+    donut: donutChartData,
+    isDemo: true // Add a flag to track if we're showing demo data
   });
   
-  // State for metrics
+  // State for metrics - update to show clear difference
   const [metrics, setMetrics] = useState({
     leads: "1,205",
     bookedCalls: "935",
@@ -81,7 +97,8 @@ function Sales() {
     showUpRate: "84.6%",
     closeRate: "62.4%",
     aov: "$5,832",
-    cashCollected: "$235,486"
+    cashCollected: "$235,486",
+    isDemo: true // Add a flag to track if we're showing demo data
   });
 
   // Handle date filter changes
@@ -98,9 +115,12 @@ function Sales() {
   const fetchSalesData = async (dateRange) => {
     if (!isAnyIntegrationConnected) {
       console.log("No integrations connected, using demo data");
+      setSalesData(prev => ({ ...prev, isDemo: true }));
+      setMetrics(prev => ({ ...prev, isDemo: true }));
       return;
     }
     
+    console.log("Fetching real sales data with connected integrations...");
     setLoading(true);
     try {
       // Get real data from the API if any integration is connected
@@ -108,21 +128,33 @@ function Sales() {
         params: dateRange
       });
       
-      console.log("Got real sales data:", response.data);
+      console.log("Got sales data response:", response.data);
       
       if (response.data && response.data.funnel) {
+        console.log("Setting real funnel data from API");
         setSalesData({
           funnel: response.data.funnel,
-          donut: response.data.donut || donutChartData
+          donut: response.data.donut || donutChartData,
+          isDemo: false // Mark as not demo data
         });
+      } else {
+        console.warn("API response missing funnel data, keeping existing data");
       }
       
       if (response.data && response.data.metrics) {
-        setMetrics(response.data.metrics);
+        console.log("Setting real metrics data from API");
+        setMetrics({
+          ...response.data.metrics,
+          isDemo: false // Mark as not demo data
+        });
+      } else {
+        console.warn("API response missing metrics data, keeping existing data");
       }
     } catch (error) {
       console.error("Failed to fetch sales data:", error);
-      // Keep using demo data on error
+      // Keep using demo data on error, but mark it as demo
+      setSalesData(prev => ({ ...prev, isDemo: true }));
+      setMetrics(prev => ({ ...prev, isDemo: true }));
     } finally {
       setLoading(false);
     }
@@ -133,6 +165,7 @@ function Sales() {
     console.log("Integration connection status changed:", isAnyIntegrationConnected);
     if (isAnyIntegrationConnected) {
       console.log("Fetching real sales data from connected integrations");
+      // Force immediate fetch when integration status changes
       fetchSalesData();
     } else {
       console.log("No integrations connected, using demo data");
@@ -140,16 +173,51 @@ function Sales() {
     }
   }, [isAnyIntegrationConnected]);
 
+  // Also add a useEffect to log when sales data changes
+  useEffect(() => {
+    console.log("Sales data updated:", salesData);
+    console.log("Metrics updated:", metrics);
+  }, [salesData, metrics]);
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <VuiBox py={3}>
-        {/* Demo Mode Banner */}
-        {!isAnyIntegrationConnected && (
+        {/* Demo Mode Banner - show if any data is demo data */}
+        {(!isAnyIntegrationConnected || salesData.isDemo || metrics.isDemo) && (
           <VuiBox mb={3} p={2} borderRadius="lg" bgColor="info">
             <VuiTypography variant="button" color="white" fontWeight="medium">
-              Demo Mode - No integrations connected. Showing sample sales data. Connect integrations in the Integrations page.
+              {!isAnyIntegrationConnected 
+                ? "Demo Mode - No integrations connected. Showing sample sales data. Connect integrations in the Integrations page."
+                : "Demo Mode - Connected to integration but using sample data. This could be due to an API error or missing data."}
             </VuiTypography>
+          </VuiBox>
+        )}
+        
+        {/* Add integration status indicator for debugging */}
+        {process.env.NODE_ENV === 'development' && (
+          <VuiBox mb={3} p={2} borderRadius="lg" bgColor={isAnyIntegrationConnected ? "success" : "error"}>
+            <VuiBox display="flex" justifyContent="space-between" alignItems="center">
+              <VuiTypography variant="button" color="white" fontWeight="medium">
+                Integration Status: {isAnyIntegrationConnected ? "Connected" : "Not Connected"}
+                {isAnyIntegrationConnected && (
+                  <span> - Using {salesData.isDemo ? "Demo" : "Real"} Data</span>
+                )}
+              </VuiTypography>
+              <VuiBox>
+                <VuiButton
+                  color="info"
+                  size="small"
+                  onClick={() => {
+                    debugIntegrationState();
+                    // Also force refresh the sales data
+                    setTimeout(() => fetchSalesData(), 500);
+                  }}
+                >
+                  Debug & Refresh
+                </VuiButton>
+              </VuiBox>
+            </VuiBox>
           </VuiBox>
         )}
         
