@@ -113,39 +113,48 @@ function Sales() {
   
   // Fetch real sales data from the API
   const fetchSalesData = async (dateRange) => {
-    if (!isAnyIntegrationConnected) {
-      console.log("No integrations connected, using demo data");
-      setSalesData(prev => ({ ...prev, isDemo: true }));
-      setMetrics(prev => ({ ...prev, isDemo: true }));
-      return;
-    }
+    // Additional logging for debugging
+    console.log("fetchSalesData called with integration status:", isAnyIntegrationConnected);
+    console.log("Individual integrations:", integrations);
+    console.log("Stripe connected:", isIntegrationConnected("stripe"));
+    console.log("YouTube connected:", isIntegrationConnected("youtube"));
     
-    console.log("Fetching real sales data with connected integrations...");
+    // Even if no integrations appear connected, we'll still try to fetch real data
+    // as the backend is configured to always return real-looking data
+    
+    console.log("Fetching sales data from API...");
     setLoading(true);
     try {
-      // Get real data from the API if any integration is connected
+      // Get data from the API
       const response = await api.get("/api/sales/data", {
         params: dateRange
       });
       
       console.log("Got sales data response:", response.data);
       
+      // Check if the response contains the message indicating real data
+      const isRealData = response.data && 
+                         response.data.message && 
+                         response.data.message.includes("Real sales data");
+      
+      console.log("Data appears to be real:", isRealData);
+      
       if (response.data && response.data.funnel) {
-        console.log("Setting real funnel data from API");
+        console.log("Setting funnel data from API");
         setSalesData({
           funnel: response.data.funnel,
           donut: response.data.donut || donutChartData,
-          isDemo: false // Mark as not demo data
+          isDemo: !isRealData // Mark as demo only if not real data
         });
       } else {
         console.warn("API response missing funnel data, keeping existing data");
       }
       
       if (response.data && response.data.metrics) {
-        console.log("Setting real metrics data from API");
+        console.log("Setting metrics data from API");
         setMetrics({
           ...response.data.metrics,
-          isDemo: false // Mark as not demo data
+          isDemo: !isRealData // Mark as demo only if not real data
         });
       } else {
         console.warn("API response missing metrics data, keeping existing data");
@@ -160,18 +169,25 @@ function Sales() {
     }
   };
   
-  // Fetch data when integration status changes
+  // Fetch data when integration status changes or on component mount
   useEffect(() => {
-    console.log("Integration connection status changed:", isAnyIntegrationConnected);
-    if (isAnyIntegrationConnected) {
-      console.log("Fetching real sales data from connected integrations");
-      // Force immediate fetch when integration status changes
-      fetchSalesData();
-    } else {
-      console.log("No integrations connected, using demo data");
-      setLoading(false);
-    }
+    console.log("Integration connection status changed or component mounted");
+    // Always fetch data from the backend, even if no integrations appear connected
+    // The backend will handle returning the appropriate data
+    fetchSalesData();
   }, [isAnyIntegrationConnected]);
+  
+  // Add a refresh timer to periodically refresh data
+  useEffect(() => {
+    // Set up a refresh timer that runs every 30 seconds
+    const refreshTimer = setInterval(() => {
+      console.log("Auto-refreshing sales data");
+      fetchSalesData();
+    }, 30000);
+    
+    // Clear the timer on component unmount
+    return () => clearInterval(refreshTimer);
+  }, []);
 
   // Also add a useEffect to log when sales data changes
   useEffect(() => {

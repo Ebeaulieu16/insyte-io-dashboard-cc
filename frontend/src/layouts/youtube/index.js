@@ -118,17 +118,26 @@ function YouTube() {
 
   // Fetch YouTube data from API
   const fetchYoutubeData = async () => {
-    if (!isAnyIntegrationConnected) {
-      console.log("No integrations connected, using demo data");
-      setLoading(false);
-      return;
-    }
+    // Additional logging for debugging
+    console.log("fetchYoutubeData called with integration status:", isAnyIntegrationConnected);
+    console.log("YouTube specifically connected:", isIntegrationConnected("youtube"));
+    
+    // Even if no integrations appear connected, we'll still try to fetch real data
+    // as the backend is configured to always return real-looking data
+    console.log("Fetching YouTube data from API...");
     
     setLoading(true);
     try {
-      // Get real data from the API if any integration is connected
+      // Always get data from the API, regardless of integration status
       const response = await api.get("/api/youtube/data");
       console.log("Got YouTube data:", response.data);
+      
+      // Check if the response contains the message indicating real data
+      const isRealData = response.data && 
+                         response.data.message && 
+                         response.data.message.includes("Real YouTube data");
+      
+      console.log("Data appears to be real YouTube data:", isRealData);
       
       if (response.data && response.data.videos) {
         setVideos(response.data.videos);
@@ -142,16 +151,30 @@ function YouTube() {
       }
     } catch (error) {
       console.error("Failed to fetch YouTube data:", error);
-      // Keep using demo data on error
+      // Keep using existing data on error
     } finally {
       setLoading(false);
     }
   };
   
-  // Fetch data when integration status changes
+  // Fetch data on component mount and when integration status changes
   useEffect(() => {
+    console.log("YouTube component mounted or integration status changed");
+    // Always fetch data from the backend, even if no integrations appear connected
     fetchYoutubeData();
   }, [isAnyIntegrationConnected]);
+  
+  // Add a refresh timer to periodically refresh data
+  useEffect(() => {
+    // Set up a refresh timer that runs every 30 seconds
+    const refreshTimer = setInterval(() => {
+      console.log("Auto-refreshing YouTube data");
+      fetchYoutubeData();
+    }, 30000);
+    
+    // Clear the timer on component unmount
+    return () => clearInterval(refreshTimer);
+  }, []);
 
   // Handle date filter changes
   const handleDateChange = (dateRange) => {
