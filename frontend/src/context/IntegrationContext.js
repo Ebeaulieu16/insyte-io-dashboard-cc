@@ -83,13 +83,77 @@ export const IntegrationProvider = ({ children }) => {
     try {
       // Don't save empty integrations
       if (integrations.length > 0) {
+        // Save to general storage
         localStorage.setItem(INTEGRATIONS_STORAGE_KEY, JSON.stringify(integrations));
         console.log('Saved integrations to local storage');
+        
+        // Also save to user-specific storage if a user is logged in
+        const userToken = localStorage.getItem('token');
+        if (userToken) {
+          localStorage.setItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`, 
+            JSON.stringify(integrations));
+          console.log('Saved integrations to user-specific local storage');
+        }
       }
     } catch (error) {
       console.error('Failed to save integrations to local storage:', error);
     }
   }, [integrations]);
+  
+  // Listen for authentication changes
+  useEffect(() => {
+    const checkAuthAndRefresh = () => {
+      const previousToken = localStorage.getItem('previous_token');
+      const currentToken = localStorage.getItem('token');
+      
+      // If token changed (user logged in or out)
+      if (previousToken !== currentToken) {
+        console.log('Authentication state changed - refreshing integrations');
+        localStorage.setItem('previous_token', currentToken || '');
+        
+        // If user logged in, try to load their specific integrations
+        if (currentToken && !previousToken) {
+          const userSpecificIntegrations = localStorage.getItem(`${INTEGRATIONS_STORAGE_KEY}_${currentToken.substring(0, 10)}`);
+          if (userSpecificIntegrations) {
+            try {
+              const parsedIntegrations = JSON.parse(userSpecificIntegrations);
+              if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
+                console.log('Loading user-specific integrations after login');
+                setIntegrations(parsedIntegrations);
+              }
+            } catch (e) {
+              console.error('Error loading user-specific integrations:', e);
+            }
+          }
+        }
+        
+        // Always trigger a refresh after auth state change
+        setTimeout(() => {
+          refreshIntegrations();
+        }, 500);
+      }
+    };
+    
+    // Store initial token
+    if (!localStorage.getItem('previous_token')) {
+      localStorage.setItem('previous_token', localStorage.getItem('token') || '');
+    }
+    
+    // Check immediately
+    checkAuthAndRefresh();
+    
+    // Set up a storage change listener
+    const handleStorageChange = (e) => {
+      if (e.key === 'token') {
+        checkAuthAndRefresh();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   // Persist lastRefreshTime to local storage whenever it changes
   useEffect(() => {
@@ -103,6 +167,8 @@ export const IntegrationProvider = ({ children }) => {
   // Function to add a locally connected integration (used when the API call succeeds but before refresh)
   const addLocalIntegration = (platform, accountName) => {
     console.log(`Adding local integration cache for ${platform}: ${accountName}`);
+    
+    // Store in our in-memory reference
     localIntegrationsRef.current[platform] = {
       platform,
       status: 'connected', 
@@ -115,19 +181,19 @@ export const IntegrationProvider = ({ children }) => {
       // Check if we already have this integration in our array
       const existingIndex = prevIntegrations.findIndex(i => i.platform === platform);
       
+      let updatedIntegrations;
       if (existingIndex >= 0) {
         // Update existing integration
-        const updatedIntegrations = [...prevIntegrations];
+        updatedIntegrations = [...prevIntegrations];
         updatedIntegrations[existingIndex] = {
           ...updatedIntegrations[existingIndex],
           status: 'connected',
           account_name: accountName,
           is_connected: true
         };
-        return updatedIntegrations;
       } else {
         // Add new integration
-        return [
+        updatedIntegrations = [
           ...prevIntegrations,
           {
             platform,
@@ -137,6 +203,20 @@ export const IntegrationProvider = ({ children }) => {
           }
         ];
       }
+      
+      // Store in user-specific storage if user is authenticated
+      const userToken = localStorage.getItem('token');
+      if (userToken) {
+        try {
+          console.log('User is authenticated - storing updated integrations with user context');
+          localStorage.setItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`, 
+            JSON.stringify(updatedIntegrations));
+        } catch (e) {
+          console.error('Failed to save user-specific integrations to local storage:', e);
+        }
+      }
+      
+      return updatedIntegrations;
     });
   };
 
@@ -150,7 +230,7 @@ export const IntegrationProvider = ({ children }) => {
     
     // Also update our integrations array to show disconnected
     setIntegrations(prevIntegrations => {
-      return prevIntegrations.map(integration => {
+      const updatedIntegrations = prevIntegrations.map(integration => {
         if (integration.platform === platform) {
           return {
             ...integration,
@@ -160,6 +240,20 @@ export const IntegrationProvider = ({ children }) => {
         }
         return integration;
       });
+      
+      // Update in user-specific storage if user is authenticated
+      const userToken = localStorage.getItem('token');
+      if (userToken) {
+        try {
+          console.log('User is authenticated - updating user-specific integrations after disconnection');
+          localStorage.setItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`, 
+            JSON.stringify(updatedIntegrations));
+        } catch (e) {
+          console.error('Failed to save user-specific integrations to local storage:', e);
+        }
+      }
+      
+      return updatedIntegrations;
     });
   };
 
@@ -230,11 +324,33 @@ export const IntegrationProvider = ({ children }) => {
       }, 500); // Increased delay to 500ms to prevent quick flashes
       
       try {
-        const response = await api.get('/api/integrations/status');
+        // Log user information if available (to help with debugging cross-device issues)
+        const userToken = localStorage.getItem('token');
+        console.log(`Fetching integration status. Auth token present: ${!!userToken}`);
+        
+        const response = await api.get('/api/integrations/status', {
+          // Add cache busting parameter to avoid getting cached results
+          params: { _t: Date.now() },
+          // Increase timeout for this specific call
+          timeout: 15000
+        });
+        
         console.log('Integration status response:', response.data);
         
         if (isMounted) {
           if (response.data && Array.isArray(response.data.integrations) && response.data.integrations.length > 0) {
+            // First, check if we have a user token 
+            if (userToken) {
+              console.log('User is authenticated - storing integrations with user context');
+              // Store these integrations with a user-specific key
+              try {
+                localStorage.setItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`, 
+                  JSON.stringify(response.data.integrations));
+              } catch (e) {
+                console.error('Failed to save user-specific integrations to local storage:', e);
+              }
+            }
+            
             // Merge with our local integration cache
             const mergedIntegrations = response.data.integrations.map(integration => {
               const localIntegration = localIntegrationsRef.current[integration.platform];
@@ -243,8 +359,12 @@ export const IntegrationProvider = ({ children }) => {
               // and the API is showing it as disconnected but our local cache says it's connected
               if (localIntegration && 
                   integration.status !== 'connected' && 
-                  localIntegration.status === 'connected') {
-                console.log(`Using cached integration for ${integration.platform} instead of API response`);
+                  localIntegration.status === 'connected' &&
+                  // Check if the local integration was updated in the last 5 minutes
+                  // This prevents using very old local integrations
+                  localIntegration.timestamp && 
+                  (Date.now() - localIntegration.timestamp) < 5 * 60 * 1000) {
+                console.log(`Using cached integration for ${integration.platform} instead of API response (local is newer)`);
                 return {
                   ...integration,
                   status: 'connected',
@@ -253,6 +373,8 @@ export const IntegrationProvider = ({ children }) => {
                 };
               }
               
+              // Otherwise, trust the server response
+              console.log(`Using server data for ${integration.platform} integration`);
               return integration;
             });
             
@@ -265,7 +387,25 @@ export const IntegrationProvider = ({ children }) => {
               console.log('Using cached local integrations instead of API response');
               setIntegrations(localIntegrationsArray);
             } else {
-              // Check local storage before falling back to defaults
+              // Try user-specific integrations first (if user is logged in)
+              const userToken = localStorage.getItem('token');
+              if (userToken) {
+                const userSpecificIntegrations = localStorage.getItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`);
+                if (userSpecificIntegrations) {
+                  try {
+                    const parsedIntegrations = JSON.parse(userSpecificIntegrations);
+                    if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
+                      console.log('Using user-specific integrations from local storage');
+                      setIntegrations(parsedIntegrations);
+                      return;
+                    }
+                  } catch (e) {
+                    console.error('Error parsing user-specific stored integrations:', e);
+                  }
+                }
+              }
+              
+              // Then check generic local storage
               const storedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
               if (storedIntegrations) {
                 try {
@@ -296,7 +436,25 @@ export const IntegrationProvider = ({ children }) => {
         
         // Check if we have any local integrations before setting defaults
         if (isMounted) {
-          // First try to use our in-memory local integrations
+          // First try user-specific integrations (if user is logged in)
+          const userToken = localStorage.getItem('token');
+          if (userToken) {
+            const userSpecificIntegrations = localStorage.getItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`);
+            if (userSpecificIntegrations) {
+              try {
+                const parsedIntegrations = JSON.parse(userSpecificIntegrations);
+                if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
+                  console.log('API error, using user-specific integrations from local storage');
+                  setIntegrations(parsedIntegrations);
+                  return;
+                }
+              } catch (e) {
+                console.error('Error parsing user-specific stored integrations:', e);
+              }
+            }
+          }
+          
+          // Then try to use our in-memory local integrations
           const localIntegrationsArray = Object.values(localIntegrationsRef.current);
           
           if (localIntegrationsArray.length > 0) {
