@@ -31,11 +31,12 @@ const checkBackendAvailability = () => {
   }
   
   // Ping the backend
-  api.get('/')
+  api.get('/api/health')
     .then(() => {
       console.log("Backend is available");
       isBackendAvailable = true;
       localStorage.setItem('backendAvailable', 'true');
+      localStorage.setItem('backendCheckTime', now.toString());
       localStorage.setItem(API_STATUS_KEY, JSON.stringify({
         available: true,
         lastConnected: now,
@@ -43,20 +44,33 @@ const checkBackendAvailability = () => {
       }));
     })
     .catch(() => {
-      console.warn("Backend is not available, running in demo mode");
-      isBackendAvailable = false;
-      localStorage.setItem('backendAvailable', 'false');
-      
-      // Update API status
-      const status = JSON.parse(localStorage.getItem(API_STATUS_KEY) || '{"errorCount":0}');
-      localStorage.setItem(API_STATUS_KEY, JSON.stringify({
-        available: false,
-        lastError: now,
-        errorCount: status.errorCount + 1
-      }));
-    })
-    .finally(() => {
-      localStorage.setItem('backendCheckTime', now.toString());
+      // Try a fallback endpoint
+      api.get('/api/integrations/status')
+        .then(() => {
+          console.log("Backend is available (fallback check)");
+          isBackendAvailable = true;
+          localStorage.setItem('backendAvailable', 'true');
+          localStorage.setItem('backendCheckTime', now.toString());
+          localStorage.setItem(API_STATUS_KEY, JSON.stringify({
+            available: true,
+            lastConnected: now,
+            errorCount: 0
+          }));
+        })
+        .catch(() => {
+          console.warn("Backend is not available, running in demo mode");
+          isBackendAvailable = false;
+          localStorage.setItem('backendAvailable', 'false');
+          localStorage.setItem('backendCheckTime', now.toString());
+          
+          // Update API status
+          const status = JSON.parse(localStorage.getItem(API_STATUS_KEY) || '{"errorCount":0}');
+          localStorage.setItem(API_STATUS_KEY, JSON.stringify({
+            available: false,
+            lastError: now,
+            errorCount: status.errorCount + 1
+          }));
+        });
     });
 };
 

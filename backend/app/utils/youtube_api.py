@@ -15,6 +15,45 @@ logger = logging.getLogger(__name__)
 # YouTube API endpoints
 YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3"
 
+async def test_youtube_api_key(api_key: str, channel_id: str) -> bool:
+    """
+    Test if a YouTube API key is valid by making a simple request.
+    
+    Args:
+        api_key: YouTube API key to test
+        channel_id: YouTube channel ID to test with
+        
+    Returns:
+        bool: True if the API key is valid, False otherwise
+    """
+    try:
+        logger.info(f"Testing YouTube API key for channel ID: {channel_id}")
+        
+        # Construct a minimal URL to test the API key
+        url = f"{YOUTUBE_API_BASE_URL}/channels"
+        params = {
+            "key": api_key,
+            "id": channel_id,
+            "part": "snippet",
+            "maxResults": 1
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params, timeout=5.0)
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                data = response.json()
+                if "items" in data and len(data["items"]) > 0:
+                    logger.info(f"YouTube API key is valid for channel ID: {channel_id}")
+                    return True
+            
+            logger.warning(f"YouTube API key validation failed with status code: {response.status_code}")
+            return False
+    except Exception as e:
+        logger.error(f"Error testing YouTube API key: {str(e)}")
+        return False
+
 async def fetch_youtube_channel_data(api_key: str, channel_id: str) -> Dict[str, Any]:
     """
     Fetch channel data from the YouTube API.

@@ -12,6 +12,40 @@ from datetime import datetime, timedelta
 # Set up logging
 logger = logging.getLogger(__name__)
 
+async def test_stripe_api_key(api_key: str) -> bool:
+    """
+    Test if a Stripe API key is valid by making a simple request.
+    
+    Args:
+        api_key: Stripe API key to test
+        
+    Returns:
+        bool: True if the API key is valid, False otherwise
+    """
+    try:
+        logger.info("Testing Stripe API key")
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get("https://api.stripe.com/v1/account", headers=headers, timeout=5.0)
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                data = response.json()
+                if "id" in data:
+                    logger.info("Stripe API key is valid")
+                    return True
+            
+            logger.warning(f"Stripe API key validation failed with status code: {response.status_code}")
+            return False
+    except Exception as e:
+        logger.error(f"Error testing Stripe API key: {str(e)}")
+        return False
+
 async def fetch_stripe_account_data(api_key: str) -> Dict[str, Any]:
     """
     Fetch account data from the Stripe API.

@@ -72,12 +72,42 @@ function Integrations() {
     message: "",
     severity: "info" // 'success', 'info', 'warning', 'error'
   });
-  const [isDemo, setIsDemo] = useState(!isBackendAvailable);
+  const [isDemo, setIsDemo] = useState(false);
+  const [demoReason, setDemoReason] = useState("");
   const [stripeApiKey, setStripeApiKey] = useState("");
   const [youtubeApiKey, setYoutubeApiKey] = useState("");
   const [youtubeChannelId, setYoutubeChannelId] = useState("");
   const [calendlyApiKey, setCalendlyApiKey] = useState("");
   const [calcomApiKey, setCalcomApiKey] = useState("");
+
+  // Check backend status and update demo mode
+  useEffect(() => {
+    const checkBackendStatus = async () => {
+      try {
+        // Try to fetch integration status
+        const response = await api.get('/api/integrations/status');
+        if (response.status === 200) {
+          // Check if we're using demo data despite having connected integrations
+          const anyConnected = contextIntegrations?.some(i => i.status === 'connected');
+          if (anyConnected && response.data?.using_demo_data) {
+            setIsDemo(true);
+            setDemoReason("Demo Mode - Connected to integration but using sample data. This could be due to an API error or missing data.");
+          } else {
+            setIsDemo(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking backend status:', error);
+        setIsDemo(true);
+        setDemoReason("Demo Mode - Backend server is not running. Showing sample integration data.");
+      }
+    };
+    
+    checkBackendStatus();
+    // Check status every 30 seconds
+    const intervalId = setInterval(checkBackendStatus, 30000);
+    return () => clearInterval(intervalId);
+  }, [contextIntegrations]);
 
   // Enhanced debounce loading state changes to prevent UI flashing
   useEffect(() => {
@@ -608,7 +638,7 @@ function Integrations() {
           {isDemo && (
             <VuiBox mt={2} p={2} borderRadius="lg" bgColor="info">
               <VuiTypography variant="button" color="white" fontWeight="medium">
-                Demo Mode - Backend server is not running. Showing sample integration data.
+                {demoReason || "Demo Mode - Connected to integration but using sample data. This could be due to an API error or missing data."}
               </VuiTypography>
             </VuiBox>
           )}
@@ -917,7 +947,7 @@ function Integrations() {
                               color="error"
                               variant="contained"
                               fullWidth
-                              onClick={() => handleDisconnect(integration.id)}
+                              onClick={() => handleDisconnect(integration.platform)}
                             >
                               Disconnect
                             </VuiButton>

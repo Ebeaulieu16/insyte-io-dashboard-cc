@@ -15,6 +15,40 @@ logger = logging.getLogger(__name__)
 # Calendly API base URL
 CALENDLY_API_BASE_URL = "https://api.calendly.com"
 
+async def test_calendly_api_key(api_key: str) -> bool:
+    """
+    Test if a Calendly API key is valid by making a simple request.
+    
+    Args:
+        api_key: Calendly API key to test
+        
+    Returns:
+        bool: True if the API key is valid, False otherwise
+    """
+    try:
+        logger.info("Testing Calendly API key")
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{CALENDLY_API_BASE_URL}/users/me", headers=headers, timeout=5.0)
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                data = response.json()
+                if "resource" in data and "email" in data["resource"]:
+                    logger.info("Calendly API key is valid")
+                    return True
+            
+            logger.warning(f"Calendly API key validation failed with status code: {response.status_code}")
+            return False
+    except Exception as e:
+        logger.error(f"Error testing Calendly API key: {str(e)}")
+        return False
+
 async def fetch_calendly_user_data(api_key: str) -> Dict[str, Any]:
     """
     Fetch user data from the Calendly API.

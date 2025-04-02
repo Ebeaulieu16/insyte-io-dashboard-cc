@@ -15,6 +15,40 @@ logger = logging.getLogger(__name__)
 # Cal.com API base URL
 CALCOM_API_BASE_URL = "https://api.cal.com/v1"
 
+async def test_calcom_api_key(api_key: str) -> bool:
+    """
+    Test if a Cal.com API key is valid by making a simple request.
+    
+    Args:
+        api_key: Cal.com API key to test
+        
+    Returns:
+        bool: True if the API key is valid, False otherwise
+    """
+    try:
+        logger.info("Testing Cal.com API key")
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{CALCOM_API_BASE_URL}/me", headers=headers, timeout=5.0)
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                data = response.json()
+                if "id" in data and "email" in data:
+                    logger.info("Cal.com API key is valid")
+                    return True
+            
+            logger.warning(f"Cal.com API key validation failed with status code: {response.status_code}")
+            return False
+    except Exception as e:
+        logger.error(f"Error testing Cal.com API key: {str(e)}")
+        return False
+
 async def fetch_calcom_user_data(api_key: str) -> Dict[str, Any]:
     """
     Fetch user data from the Cal.com API.

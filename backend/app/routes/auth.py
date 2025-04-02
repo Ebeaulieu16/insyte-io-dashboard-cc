@@ -600,7 +600,79 @@ async def get_integration_status(
             
             platforms_with_status.append(integration_data)
         
-        return {"integrations": platforms_with_status}
+        # Check if any integrations are connected but we're still using demo data
+        any_connected = any(integration['status'] == 'connected' for integration in platforms_with_status)
+        using_demo_data = False
+        
+        # Check if we have any connected integrations but are still using demo data
+        # This could happen if the API keys are invalid or there's an API error
+        if any_connected:
+            try:
+                # Check all connected integrations
+                for platform in ['youtube', 'stripe', 'calendly', 'calcom']:
+                    platform_integration = next((i for i in platforms_with_status if i['platform'] == platform and i['status'] == 'connected'), None)
+                    if platform_integration:
+                        # Get the integration from the database to check if it has valid API keys
+                        db_integration = db.query(Integration).filter(
+                            Integration.platform == platform,
+                            Integration.user_id == user_id
+                        ).first()
+                        
+                        if db_integration and db_integration.extra_data:
+                            # Check if API keys are working based on platform
+                            if platform == 'youtube':
+                                from app.utils.youtube_api import test_youtube_api_key
+                                api_key = db_integration.extra_data.get('api_key')
+                                channel_id = db_integration.extra_data.get('channel_id')
+                                
+                                if api_key and channel_id:
+                                    is_valid = await test_youtube_api_key(api_key, channel_id)
+                                    if not is_valid:
+                                        using_demo_data = True
+                                        logger.warning(f"YouTube API key for user {user_id} is not working properly")
+                                        break
+                            
+                            elif platform == 'stripe':
+                                from app.utils.stripe_api import test_stripe_api_key
+                                api_key = db_integration.extra_data.get('api_key')
+                                
+                                if api_key:
+                                    is_valid = await test_stripe_api_key(api_key)
+                                    if not is_valid:
+                                        using_demo_data = True
+                                        logger.warning(f"Stripe API key for user {user_id} is not working properly")
+                                        break
+                            
+                            elif platform == 'calendly':
+                                from app.utils.calendly_api import test_calendly_api_key
+                                api_key = db_integration.extra_data.get('api_key')
+                                
+                                if api_key:
+                                    is_valid = await test_calendly_api_key(api_key)
+                                    if not is_valid:
+                                        using_demo_data = True
+                                        logger.warning(f"Calendly API key for user {user_id} is not working properly")
+                                        break
+                            
+                            elif platform == 'calcom':
+                                from app.utils.calcom_api import test_calcom_api_key
+                                api_key = db_integration.extra_data.get('api_key')
+                                
+                                if api_key:
+                                    is_valid = await test_calcom_api_key(api_key)
+                                    if not is_valid:
+                                        using_demo_data = True
+                                        logger.warning(f"Cal.com API key for user {user_id} is not working properly")
+                                        break
+            except Exception as e:
+                logger.error(f"Error checking real data status: {str(e)}")
+                using_demo_data = True
+        
+        return {
+            "integrations": platforms_with_status,
+            "using_demo_data": using_demo_data,
+            "backend_available": True
+        }
     except Exception as e:
         logger.error(f"Error in get_integration_status: {str(e)}")
         raise HTTPException(
