@@ -739,9 +739,13 @@ def connect_stripe_api_key(
         stripe_api_key = api_key["api_key"].strip()
         logger.info(f"Received API key: {stripe_api_key[:4]}...{stripe_api_key[-4:] if len(stripe_api_key) > 8 else ''}")
 
-        # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key starts with sk_
+        # Validate API key format and prepare for storage
         if stripe_api_key.startswith("sk_"):
-            logger.warning("TEMPORARY: Skipping actual API validation and proceeding with valid connection")
+            logger.info(f"Processing Stripe connection with valid API key format")
+            
+            # Store API key in extra_data JSON field
+            extra_data = {"api_key": stripe_api_key}
+            
             account_name = "Your Stripe Account"
             account_id = "acct_" + stripe_api_key[-8:]  # Use part of API key to make unique
             
@@ -809,13 +813,14 @@ def connect_stripe_api_key(
                         logger.info(f"Updated existing Stripe integration (ID: {existing_row[0]})")
                     else:
                         # Insert new integration with only columns that exist
-                        insert_columns = ["platform", "account_name", "account_id", "user_id"]
-                        insert_values = [":platform", ":account_name", ":account_id", ":user_id"]
+                        insert_columns = ["platform", "account_name", "account_id", "user_id", "extra_data"]
+                        insert_values = [":platform", ":account_name", ":account_id", ":user_id", ":extra_data"]
                         insert_params = {
                             "platform": "stripe",
                             "account_name": account_name,
                             "account_id": account_id,
-                            "user_id": user_id
+                            "user_id": user_id,
+                            "extra_data": json.dumps(extra_data)
                         }
                         
                         # Add optional columns if they exist
@@ -935,10 +940,14 @@ def connect_youtube_api_key(
         
         logger.info(f"Processing YouTube connection with key prefix: {youtube_api_key[:4]}... and channel: {channel_id}")
 
-        # TEMPORARY DEBUGGING SOLUTION - Skip validation if API key starts with appropriate prefix
+        # Validate API key format and prepare for storage
         if youtube_api_key.startswith("AIza"):
-            logger.warning("TEMPORARY: Skipping actual API validation and proceeding with valid connection")
-            # Use the channel ID as part of the account name to make it feel more real
+            logger.info(f"Processing YouTube connection for channel: {channel_id}")
+            
+            # Store API key in extra_data JSON field
+            extra_data = {"api_key": youtube_api_key}
+            
+            # Use the channel ID as part of the account name
             channel_name = f"YouTube Channel: {channel_id}"
             
             # Fast direct database operations using SQLAlchemy ORM
@@ -956,6 +965,7 @@ def connect_youtube_api_key(
                     existing_integration.account_id = channel_id
                     existing_integration.user_id = user_id
                     existing_integration.status = IntegrationStatus.CONNECTED
+                    existing_integration.extra_data = extra_data
                     
                     if hasattr(existing_integration, 'is_connected'):
                         existing_integration.is_connected = True
@@ -969,7 +979,8 @@ def connect_youtube_api_key(
                         user_id=user_id,
                         status=IntegrationStatus.CONNECTED,
                         auth_type=IntegrationAuthType.API_KEY,
-                        last_sync=datetime.now()
+                        last_sync=datetime.now(),
+                        extra_data=extra_data
                     )
                     db.add(new_integration)
                 

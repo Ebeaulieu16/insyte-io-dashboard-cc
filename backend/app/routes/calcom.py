@@ -15,6 +15,7 @@ import json
 from app.database import get_db
 from app.models.integration import Integration, IntegrationType, IntegrationStatus, IntegrationAuthType
 from app.models.call import CallStatus
+from app.utils.calcom_api import get_calcom_data_for_integration
 
 router = APIRouter(
     prefix="/api/calcom",
@@ -328,4 +329,150 @@ async def get_calcom_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting Cal.com statistics: {str(e)}"
-        ) 
+        )
+
+@router.get("/comprehensive-data")
+async def get_calcom_comprehensive_data(
+    db: Session = Depends(get_db),
+    user_id: int = 1
+):
+    """
+    Get comprehensive Cal.com data using the new API utility.
+    Fetches user profile, bookings, event types, and calculates metrics.
+    
+    Args:
+        user_id: User ID (defaults to 1 for testing/demo)
+        
+    Returns:
+        dict: Comprehensive Cal.com data
+    """
+    try:
+        # Get Cal.com integration and API key
+        try:
+            integration, api_key = get_calcom_integration(db, user_id)
+            logger.info(f"Found Cal.com integration for user {user_id}")
+        except HTTPException as e:
+            # If integration not found, return demo data
+            logger.warning(f"Cal.com integration not found: {e.detail}")
+            return {
+                "message": "Demo Cal.com data (no integration connected)",
+                "data": get_demo_calcom_data()
+            }
+        
+        # Fetch real data using the API utility
+        logger.info("Fetching real Cal.com data from API")
+        calcom_data = await get_calcom_data_for_integration(api_key)
+        
+        return {
+            "message": "Real Cal.com data from API",
+            "data": calcom_data
+        }
+    
+    except Exception as e:
+        logger.error(f"Error in get_calcom_comprehensive_data: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching Cal.com data: {str(e)}"
+        )
+
+def get_demo_calcom_data() -> Dict[str, Any]:
+    """
+    Get demo Cal.com data for testing.
+    
+    Returns:
+        dict: Demo Cal.com data
+    """
+    # Generate some demo bookings
+    now = datetime.now()
+    bookings = []
+    
+    for i in range(10):
+        booking_date = now - timedelta(days=i*2)
+        bookings.append({
+            "id": f"booking_{i}",
+            "title": f"Demo Booking {i+1}",
+            "description": f"This is a demo booking {i+1}",
+            "startTime": (booking_date + timedelta(hours=9)).isoformat(),
+            "endTime": (booking_date + timedelta(hours=10)).isoformat(),
+            "attendees": [
+                {"email": f"attendee{i}@example.com", "name": f"Attendee {i}"}
+            ],
+            "status": "ACCEPTED" if i % 4 != 0 else "CANCELLED",
+            "eventTypeId": i % 3 + 1,
+            "location": "Zoom",
+            "createdAt": (booking_date - timedelta(days=3)).isoformat()
+        })
+    
+    # Create event types
+    event_types = [
+        {
+            "id": 1,
+            "title": "15 Minute Meeting",
+            "description": "Quick 15 minute meeting",
+            "length": 15,
+            "slug": "15min",
+            "hidden": False,
+            "position": 1,
+            "price": 0,
+            "currency": "USD"
+        },
+        {
+            "id": 2,
+            "title": "30 Minute Meeting",
+            "description": "Standard 30 minute meeting",
+            "length": 30,
+            "slug": "30min",
+            "hidden": False,
+            "position": 2,
+            "price": 0,
+            "currency": "USD"
+        },
+        {
+            "id": 3,
+            "title": "60 Minute Meeting",
+            "description": "Extended 60 minute meeting",
+            "length": 60,
+            "slug": "60min",
+            "hidden": False,
+            "position": 3,
+            "price": 0,
+            "currency": "USD"
+        }
+    ]
+    
+    # Create daily data for chart
+    daily_data = []
+    for i in range(30):
+        day = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        count = i % 3  # 0, 1, or 2 bookings per day
+        if count > 0:
+            daily_data.append({"date": day, "count": count})
+    
+    # Sort by date
+    daily_data.sort(key=lambda x: x["date"])
+    
+    return {
+        "message": "Demo Cal.com data",
+        "bookings": bookings,
+        "eventTypes": event_types,
+        "user": {
+            "id": "user_demo",
+            "name": "Demo User",
+            "email": "demo@example.com",
+            "username": "demo_user",
+            "timeZone": "America/New_York",
+            "avatar": "https://ui-avatars.com/api/?name=Demo+User",
+            "bio": "This is a demo user for Cal.com integration",
+            "weekStart": "Sunday"
+        },
+        "metrics": {
+            "totalBookings": len(bookings),
+            "dailyData": daily_data,
+            "bookingsByType": [
+                {"type": "15 Minute Meeting", "count": 3},
+                {"type": "30 Minute Meeting", "count": 4},
+                {"type": "60 Minute Meeting", "count": 3}
+            ],
+            "averageBookingsPerDay": 1.0
+        }
+    }

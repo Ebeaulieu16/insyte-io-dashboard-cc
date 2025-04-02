@@ -10,8 +10,10 @@ from typing import Optional, Dict, Any, List
 from datetime import date, datetime, timedelta
 import random
 import logging
+import json
 
 from app.database import get_db
+from app.utils.youtube_api import get_youtube_data_for_integration
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -147,9 +149,8 @@ async def get_youtube_data(
             logger.error(f"Error checking integration connections: {e}")
             is_any_integration_connected = False
         
-        # FORCE CONNECTED MODE FOR TESTING - Keep this enabled to always return real-looking data
-        is_any_integration_connected = True
-        logger.info("FORCING CONNECTED MODE FOR TESTING - Always returning real-looking YouTube data")
+        # Check if we actually have connected integrations
+        logger.info(f"Integration connection status: {'Connected' if is_any_integration_connected else 'Not connected'}")
         
         # Demo data for YouTube videos
         demo_videos = [
@@ -223,62 +224,81 @@ async def get_youtube_data(
                 "videos": demo_videos
             }
         
-        # At least one integration is connected, return real-looking data with variations
-        logger.info("Returning real data based on connected integrations")
+        # At least one integration is connected, fetch real data from YouTube API
+        logger.info("Fetching real data from YouTube API")
         
-        # Create a realistic-looking dataset by adding some random variations to the demo data
-        real_videos = []
-        for video in demo_videos:
-            # Add some random variation to make the data look more realistic
-            views_factor = random.uniform(0.9, 1.15)
-            likes_factor = random.uniform(0.85, 1.2)
-            comments_factor = random.uniform(0.8, 1.3)
+        try:
+            # Get YouTube API key and channel ID from the integration
+            integration_query = """
+            SELECT account_id, extra_data 
+            FROM integrations 
+            WHERE platform = 'youtube' AND 
+            (status = 'connected' OR is_connected = true)
+            LIMIT 1
+            """
             
-            # Create a new video object with randomized values
-            real_video = {
-                "id": video["id"],
-                "title": video["title"],
-                "views": int(video["views"] * views_factor),
-                "likes": int(video["likes"] * likes_factor),
-                "comments": int(video["comments"] * comments_factor),
-                "avgViewDuration": video["avgViewDuration"],
-                "clicks": int(video["clicks"] * views_factor * 0.95),
-                "bookedCalls": int(video["bookedCalls"] * views_factor * 0.9),
-                "closedDeals": int(video["closedDeals"] * views_factor * 0.85),
-                "revenue": int(video["revenue"] * views_factor * 0.9),
-            }
-            real_videos.append(real_video)
+            result = await db.execute(text(integration_query))
+            integration = result.fetchone()
             
-        # Calculate totals for the metrics
-        total_views = sum(video["views"] for video in real_videos)
-        total_likes = sum(video["likes"] for video in real_videos)
-        total_comments = sum(video["comments"] for video in real_videos)
-        total_clicks = sum(video["clicks"] for video in real_videos)
-        total_booked_calls = sum(video["bookedCalls"] for video in real_videos)
-        total_closed_deals = sum(video["closedDeals"] for video in real_videos)
-        total_revenue = sum(video["revenue"] for video in real_videos)
-        
-        # Calculate rates
-        conversion_rate = round((total_clicks / total_views) * 100, 2)
-        booking_rate = round((total_booked_calls / total_clicks) * 100, 2)
-        closing_rate = round((total_closed_deals / total_booked_calls) * 100, 2)
-        
-        return {
-            "message": "Real YouTube data from connected integrations",
-            "videos": real_videos,
-            "metrics": {
-                "totalViews": total_views,
-                "totalLikes": total_likes,
-                "totalComments": total_comments,
-                "totalClicks": total_clicks,
-                "totalBookedCalls": total_booked_calls,
-                "totalClosedDeals": total_closed_deals,
-                "totalRevenue": total_revenue,
-                "conversionRate": conversion_rate,
-                "bookingRate": booking_rate,
-                "closingRate": closing_rate
+            if not integration:
+                logger.warning("No YouTube integration found in database despite connection check")
+                # Fall back to demo data
+                return {
+                    "message": "Demo data - No YouTube integration found",
+                    "videos": demo_videos
+                }
+            
+            channel_id = integration[0]  # account_id contains the channel ID
+            extra_data = integration[1]
+            
+            # Parse extra_data to get the API key
+            api_key = None
+            if extra_data:
+                try:
+                    if isinstance(extra_data, str):
+                        data = json.loads(extra_data)
+                    else:
+                        data = extra_data
+                    
+                    api_key = data.get("api_key")
+                except (json.JSONDecodeError, AttributeError) as e:
+                    logger.error(f"Error parsing extra_data: {e}")
+            
+            # If we couldn't get the API key from extra_data, try environment variables
+            if not api_key:
+                import os
+                api_key = os.getenv("YOUTUBE_API_KEY")
+                logger.info("Using YouTube API key from environment variables")
+            
+            if not api_key:
+                logger.error("No YouTube API key found")
+                # Fall back to demo data
+                return {
+                    "message": "Demo data - No YouTube API key found",
+                    "videos": demo_videos
+                }
+            
+            # Fetch real data from YouTube API
+            youtube_data = await get_youtube_data_for_integration(api_key, channel_id)
+            
+            if not youtube_data.get("videos"):
+                logger.warning("No videos found from YouTube API")
+                # Fall back to demo data
+                return {
+                    "message": "Demo data - No videos found from YouTube API",
+                    "videos": demo_videos
+                }
+            
+            logger.info(f"Successfully fetched {len(youtube_data['videos'])} videos from YouTube API")
+            return youtube_data
+            
+        except Exception as e:
+            logger.error(f"Error fetching real YouTube data: {e}")
+            # Fall back to demo data on error
+            return {
+                "message": f"Demo data - Error fetching real data: {str(e)}",
+                "videos": demo_videos
             }
-        }
         
     except Exception as e:
         logger.error(f"Error fetching YouTube data: {e}")
