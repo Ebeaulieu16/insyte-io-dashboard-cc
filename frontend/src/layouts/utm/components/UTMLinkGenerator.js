@@ -13,6 +13,7 @@ import FormHelperText from "@mui/material/FormHelperText";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import Alert from "@mui/material/Alert";
 import Snackbar from "@mui/material/Snackbar";
+import CircularProgress from "@mui/material/CircularProgress";
 
 // Vision UI Dashboard React components
 import VuiBox from "components/VuiBox";
@@ -28,11 +29,38 @@ function UTMLinkGenerator({ onSuccess }) {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [destinationUrl, setDestinationUrl] = useState("");
+  const [utmSource, setUtmSource] = useState("youtube");
+  const [utmMedium, setUtmMedium] = useState("video");
+  const [utmCampaign, setUtmCampaign] = useState("");
+  const [utmContent, setUtmContent] = useState("");
+  const [customParam, setCustomParam] = useState({ name: "", value: "" });
   const [generatedLink, setGeneratedLink] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [showCopyToast, setShowCopyToast] = useState(false);
+  
+  // Source options
+  const sourceOptions = [
+    { value: "youtube", label: "YouTube" },
+    { value: "facebook", label: "Facebook" },
+    { value: "instagram", label: "Instagram" },
+    { value: "linkedin", label: "LinkedIn" },
+    { value: "twitter", label: "Twitter" },
+    { value: "tiktok", label: "TikTok" },
+    { value: "email", label: "Email" },
+    { value: "direct", label: "Direct" },
+  ];
+  
+  // Medium options
+  const mediumOptions = [
+    { value: "video", label: "Video" },
+    { value: "social", label: "Social" },
+    { value: "email", label: "Email" },
+    { value: "cpc", label: "CPC" },
+    { value: "organic", label: "Organic" },
+    { value: "referral", label: "Referral" },
+  ];
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -133,9 +161,26 @@ function UTMLinkGenerator({ onSuccess }) {
         title,
         slug,
         destination_url: destinationUrl,
+        utm_source: utmSource,
+        utm_medium: utmMedium,
+        utm_campaign: utmCampaign || undefined,
       });
 
-      setGeneratedLink(response.data.link);
+      // Construct the full UTM link for display
+      const baseLink = response.data.link;
+      let displayLink = baseLink;
+      
+      // Add utm_content if provided (this is handled client-side for display purposes)
+      if (utmContent) {
+        displayLink = `${displayLink}&utm_content=${encodeURIComponent(utmContent)}`;
+      }
+      
+      // Add custom parameter if both name and value are provided
+      if (customParam.name && customParam.value) {
+        displayLink = `${displayLink}&${encodeURIComponent(customParam.name)}=${encodeURIComponent(customParam.value)}`;
+      }
+      
+      setGeneratedLink(displayLink);
       setIsLoading(false);
       
       // Call the onSuccess callback if provided
@@ -162,171 +207,271 @@ function UTMLinkGenerator({ onSuccess }) {
   };
 
   return (
-    <VuiBox>
-      <form onSubmit={handleSubmit}>
-        <Grid container spacing={3}>
-          {/* Video Title Input */}
-          <Grid item xs={12}>
-            <VuiBox mb={1} ml={0.5}>
-              <VuiTypography component="label" variant="button" color="white" fontWeight="medium">
-                Video Title
-              </VuiTypography>
-            </VuiBox>
-            <VuiInput
-              type="text"
-              placeholder="e.g., How to Scale Your YouTube Channel"
-              value={title}
-              onChange={handleTitleChange}
-              error={!!errors.title}
-              success={title && !errors.title}
-            />
-            {errors.title && (
-              <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
-                {errors.title}
-              </VuiTypography>
-            )}
-          </Grid>
-
-          {/* Slug Input */}
-          <Grid item xs={12}>
-            <VuiBox mb={1} ml={0.5}>
-              <VuiTypography component="label" variant="button" color="white" fontWeight="medium">
-                Slug (appears in the URL)
-              </VuiTypography>
-            </VuiBox>
-            <VuiInput
-              type="text"
-              placeholder="e.g., scale-your-content"
-              value={slug}
-              onChange={handleSlugChange}
-              error={!!errors.slug}
-              success={slug && !errors.slug}
-            />
-            {errors.slug ? (
-              <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
-                {errors.slug}
-              </VuiTypography>
-            ) : (
-              <VuiTypography component="div" variant="button" color="text" fontWeight="regular" mt={0.5}>
-                Lowercase letters, numbers, and hyphens only
-              </VuiTypography>
-            )}
-          </Grid>
-
-          {/* Destination URL Input */}
-          <Grid item xs={12}>
-            <VuiBox mb={1} ml={0.5}>
-              <VuiTypography component="label" variant="button" color="white" fontWeight="medium">
-                Destination URL
-              </VuiTypography>
-            </VuiBox>
-            <VuiInput
-              type="url"
-              placeholder="https://calendly.com/yourusername/call"
-              value={destinationUrl}
-              onChange={handleDestinationUrlChange}
-              error={!!errors.destinationUrl}
-              success={destinationUrl && !errors.destinationUrl}
-            />
-            {errors.destinationUrl && (
-              <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
-                {errors.destinationUrl}
-              </VuiTypography>
-            )}
-          </Grid>
-
-          {/* Submit Button */}
-          <Grid item xs={12}>
-            <VuiButton
-              type="submit"
-              color="info"
-              variant="contained"
-              disabled={isLoading}
-              fullWidth
-            >
-              {isLoading ? "Generating..." : "Generate UTM Link"}
-            </VuiButton>
-          </Grid>
-
-          {/* API Error Display */}
-          {apiError && (
-            <Grid item xs={12}>
-              <Alert
-                severity="error"
-                sx={{
-                  backgroundColor: "rgba(244, 67, 53, 0.1)",
-                  color: "#f44335",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(244, 67, 53, 0.3)",
-                }}
-              >
-                {apiError}
-              </Alert>
+    <Card>
+      <VuiBox p={3}>
+        <VuiTypography variant="h5" color="white" mb={1}>
+          Create Links with UTM Parameters
+        </VuiTypography>
+        <VuiTypography variant="caption" color="text" fontWeight="regular" mb={3}>
+          Generate links with UTM parameters to track your marketing campaigns
+        </VuiTypography>
+        
+        {apiError && (
+          <Alert severity="error" sx={{ mb: 3, backgroundColor: "rgba(244, 67, 53, 0.1)", color: "#f44335" }}>
+            {apiError}
+          </Alert>
+        )}
+        
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            {/* Left Column */}
+            <Grid item xs={12} md={6}>
+              {/* Base URL field */}
+              <VuiBox mb={2}>
+                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                  Base URL
+                </VuiTypography>
+                <VuiInput
+                  type="url"
+                  placeholder="https://insyte.io/webinar"
+                  value={destinationUrl}
+                  onChange={handleDestinationUrlChange}
+                  error={!!errors.destinationUrl}
+                  success={destinationUrl && !errors.destinationUrl}
+                />
+                {errors.destinationUrl && (
+                  <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
+                    {errors.destinationUrl}
+                  </VuiTypography>
+                )}
+              </VuiBox>
+              
+              {/* Video Title field */}
+              <VuiBox mb={2}>
+                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                  Video Title
+                </VuiTypography>
+                <VuiInput
+                  type="text"
+                  placeholder="e.g., How to Scale Your YouTube Channel"
+                  value={title}
+                  onChange={handleTitleChange}
+                  error={!!errors.title}
+                  success={title && !errors.title}
+                />
+                {errors.title && (
+                  <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
+                    {errors.title}
+                  </VuiTypography>
+                )}
+              </VuiBox>
+              
+              {/* Slug field */}
+              <VuiBox mb={2}>
+                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                  Slug (appears in the URL)
+                </VuiTypography>
+                <VuiInput
+                  type="text"
+                  placeholder="e.g., scale-your-content"
+                  value={slug}
+                  onChange={handleSlugChange}
+                  error={!!errors.slug}
+                  success={slug && !errors.slug}
+                />
+                {errors.slug ? (
+                  <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
+                    {errors.slug}
+                  </VuiTypography>
+                ) : (
+                  <VuiTypography component="div" variant="button" color="text" fontWeight="regular" mt={0.5}>
+                    Lowercase letters, numbers, and hyphens only
+                  </VuiTypography>
+                )}
+              </VuiBox>
             </Grid>
-          )}
-
-          {/* Generated Link Display */}
-          {generatedLink && (
+            
+            {/* Right Column */}
+            <Grid item xs={12} md={6}>
+              {/* UTM Source field */}
+              <VuiBox mb={2}>
+                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                  Source (required)
+                </VuiTypography>
+                <select
+                  value={utmSource}
+                  onChange={(e) => setUtmSource(e.target.value)}
+                  style={{
+                    backgroundColor: "#0f1535",
+                    color: "white",
+                    padding: "10px",
+                    border: "1px solid #2d41a9",
+                    borderRadius: "10px",
+                    width: "100%",
+                  }}
+                >
+                  {sourceOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </VuiBox>
+              
+              {/* UTM Medium field */}
+              <VuiBox mb={2}>
+                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                  Medium (required)
+                </VuiTypography>
+                <select
+                  value={utmMedium}
+                  onChange={(e) => setUtmMedium(e.target.value)}
+                  style={{
+                    backgroundColor: "#0f1535",
+                    color: "white",
+                    padding: "10px",
+                    border: "1px solid #2d41a9",
+                    borderRadius: "10px",
+                    width: "100%",
+                  }}
+                >
+                  {mediumOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </VuiBox>
+              
+              {/* UTM Campaign field */}
+              <VuiBox mb={2}>
+                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                  Campaign Name
+                </VuiTypography>
+                <VuiInput
+                  type="text"
+                  placeholder="e.g., webinar-sales"
+                  value={utmCampaign}
+                  onChange={(e) => setUtmCampaign(e.target.value)}
+                />
+                <VuiTypography component="div" variant="caption" color="text" fontWeight="regular" mt={0.5}>
+                  Used for paid campaigns (keywords)
+                </VuiTypography>
+              </VuiBox>
+              
+              {/* UTM Content field */}
+              <VuiBox mb={2}>
+                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                  Content (optional)
+                </VuiTypography>
+                <VuiInput
+                  type="text"
+                  placeholder="content-description"
+                  value={utmContent}
+                  onChange={(e) => setUtmContent(e.target.value)}
+                />
+                <VuiTypography component="div" variant="caption" color="text" fontWeight="regular" mt={0.5}>
+                  Used to differentiate versions of similar content
+                </VuiTypography>
+              </VuiBox>
+            </Grid>
+            
+            {/* Submit Button */}
             <Grid item xs={12}>
-              <Card 
-                sx={{ 
-                  background: "linear-gradient(127.09deg, rgba(6, 11, 40, 0.94) 19.41%, rgba(10, 14, 35, 0.49) 76.65%)",
-                  border: "1px solid rgba(22, 249, 170, 0.3)",
-                  borderRadius: "15px"
-                }}
+              <VuiButton
+                type="submit"
+                color="info"
+                variant="contained"
+                disabled={isLoading}
+                fullWidth
+                startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <IoLinkSharp />}
               >
-                <VuiBox p={2}>
-                  <VuiBox display="flex" alignItems="center" mb={1}>
-                    <IoCheckmarkCircle size="18px" color="#16f9aa" />
-                    <VuiTypography variant="button" color="success" fontWeight="medium" ml={1}>
-                      UTM Link Generated Successfully
-                    </VuiTypography>
-                  </VuiBox>
+                {isLoading ? "Generating..." : "Generate UTM Link"}
+              </VuiButton>
+            </Grid>
 
-                  <VuiBox
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    bgcolor="rgba(22, 249, 170, 0.1)"
-                    p={2}
-                    borderRadius="10px"
+            {/* Generated Link Display */}
+            {generatedLink && (
+              <Grid item xs={12}>
+                <VuiBox mt={3}>
+                  <VuiTypography variant="h6" color="white" mb={2}>
+                    Generated UTM Link
+                  </VuiTypography>
+                  <Card 
+                    sx={{ 
+                      background: "linear-gradient(127.09deg, rgba(6, 11, 40, 0.94) 19.41%, rgba(10, 14, 35, 0.49) 76.65%)",
+                      border: "1px solid rgba(22, 249, 170, 0.3)",
+                      borderRadius: "15px"
+                    }}
                   >
-                    <VuiTypography variant="button" color="white" fontWeight="regular" sx={{ wordBreak: "break-all" }}>
-                      {generatedLink}
-                    </VuiTypography>
-                    <CopyToClipboard text={generatedLink} onCopy={handleCopy}>
-                      <VuiButton color="primary" variant="outlined" size="small" sx={{ ml: 1, minWidth: "auto" }}>
-                        <IoCopy size="18px" />
-                      </VuiButton>
-                    </CopyToClipboard>
-                  </VuiBox>
-                </VuiBox>
-              </Card>
-            </Grid>
-          )}
-        </Grid>
-      </form>
+                    <VuiBox p={2}>
+                      <VuiBox display="flex" alignItems="center" mb={1}>
+                        <IoCheckmarkCircle size="18px" color="#16f9aa" />
+                        <VuiTypography variant="button" color="success" fontWeight="medium" ml={1}>
+                          UTM Link Generated Successfully
+                        </VuiTypography>
+                      </VuiBox>
 
-      {/* Copy Success Toast */}
-      <Snackbar
-        open={showCopyToast}
-        autoHideDuration={3000}
-        onClose={() => setShowCopyToast(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          severity="success"
-          sx={{
-            backgroundColor: "rgba(22, 249, 170, 0.1)",
-            color: "#16f9aa",
-            borderRadius: "10px",
-            border: "1px solid rgba(22, 249, 170, 0.3)",
-          }}
+                      <VuiBox
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        bgcolor="rgba(22, 249, 170, 0.1)"
+                        p={2}
+                        borderRadius="10px"
+                      >
+                        <VuiTypography variant="button" color="white" fontWeight="regular" sx={{ wordBreak: "break-all" }}>
+                          {generatedLink}
+                        </VuiTypography>
+                        <CopyToClipboard text={generatedLink} onCopy={handleCopy}>
+                          <VuiButton color="primary" variant="outlined" size="small" sx={{ ml: 1, minWidth: "auto" }}>
+                            <IoCopy size="18px" />
+                          </VuiButton>
+                        </CopyToClipboard>
+                      </VuiBox>
+                      <VuiTypography variant="caption" color="text" fontWeight="regular" mt={1} display="block">
+                        Use this link in your YouTube videos. When viewers click it, we'll track their journey through your funnel.
+                      </VuiTypography>
+                    </VuiBox>
+                  </Card>
+                </VuiBox>
+              </Grid>
+            )}
+          </Grid>
+        </form>
+        
+        {/* Copy toast notification */}
+        <Snackbar
+          open={showCopyToast}
+          autoHideDuration={3000}
+          onClose={() => setShowCopyToast(false)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         >
-          Link copied to clipboard!
-        </Alert>
-      </Snackbar>
-    </VuiBox>
+          <Alert
+            severity="success"
+            sx={{
+              backgroundColor: "rgba(22, 249, 170, 0.1)",
+              color: "#16f9aa",
+              borderRadius: "10px",
+              border: "1px solid rgba(22, 249, 170, 0.3)",
+            }}
+            icon={<IoCheckmarkCircle size="24px" />}
+            action={
+              <VuiButton
+                color="error"
+                size="small"
+                onClick={() => setShowCopyToast(false)}
+                sx={{ minWidth: "auto", p: 0.5 }}
+              >
+                <IoClose size="18px" />
+              </VuiButton>
+            }
+          >
+            Link copied to clipboard!
+          </Alert>
+        </Snackbar>
+      </VuiBox>
+    </Card>
   );
 }
 

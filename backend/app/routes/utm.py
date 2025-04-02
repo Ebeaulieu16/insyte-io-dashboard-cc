@@ -10,6 +10,7 @@ from sqlalchemy import func, desc, distinct, case, and_, extract
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, HttpUrl, validator, Field
 import re
+import os
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 # import datetime
 from datetime import date, datetime, timedelta
@@ -88,7 +89,10 @@ async def create_link(
         new_link = VideoLink(
             slug=link_data.slug,
             title=link_data.title,
-            destination_url=str(link_data.destination_url)
+            destination_url=str(link_data.destination_url),
+            utm_source=link_data.utm_source,
+            utm_medium=link_data.utm_medium,
+            utm_campaign=link_data.utm_campaign
         )
         
         db.add(new_link)
@@ -96,7 +100,7 @@ async def create_link(
         db.refresh(new_link)
         
         # Construct the full URL for the link
-        base_url = "https://yourdomain.com"  # This should come from config in production
+        base_url = os.getenv("BASE_URL", "https://insyte-io-dashboard-cc.onrender.com")
         link_url = f"{base_url}/go/{new_link.slug}"
         
         return {
@@ -151,10 +155,14 @@ async def redirect_link(
     parsed_url = urlparse(link.destination_url)
     query_params = parse_qs(parsed_url.query)
     
-    # Add UTM parameters
-    query_params["utm_source"] = ["youtube"]
-    query_params["utm_medium"] = ["video"]
+    # Get UTM parameters from the link record
+    query_params["utm_source"] = [link.utm_source or "youtube"]
+    query_params["utm_medium"] = [link.utm_medium or "video"]
     query_params["utm_content"] = [slug]
+    
+    # Add campaign if available
+    if link.utm_campaign:
+        query_params["utm_campaign"] = [link.utm_campaign]
     
     # Rebuild the URL with new query parameters
     new_query = urlencode(query_params, doseq=True)
