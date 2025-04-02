@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && chmod +x start-backend.sh && ./start-backend.sh
+    startCommand: cd backend && python fix_integrations_constraint.py && chmod +x start-backend.sh && ./start-backend.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.8
