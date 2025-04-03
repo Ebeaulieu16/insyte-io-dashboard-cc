@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 CALCOM_API_BASE = "https://api.cal.com/v2"
 
 # Helper functions
-def get_calcom_integration(db: Session, user_id: int = 1):
+def get_calcom_integration(db: Session, user_id: int):
     """Get Cal.com integration for the user."""
     integration = db.query(Integration).filter(
         Integration.user_id == user_id,
@@ -92,8 +92,13 @@ def map_calcom_status_to_internal(calcom_status: str) -> str:
 @router.get("/")
 async def get_calcom_user_profile(
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_optional_current_user)
 ):
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
     """
     Get Cal.com user profile.
     
@@ -144,8 +149,13 @@ async def get_calcom_bookings(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_optional_current_user)
 ):
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
     """
     Get Cal.com bookings.
     
@@ -204,8 +214,13 @@ async def get_calcom_bookings(
 @router.get("/event-types")
 async def get_calcom_event_types(
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_optional_current_user)
 ):
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
     """
     Get Cal.com event types.
     
@@ -256,8 +271,13 @@ async def get_calcom_stats(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_optional_current_user)
 ):
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
     """
     Get Cal.com booking statistics.
     
@@ -334,8 +354,13 @@ async def get_calcom_stats(
 @router.get("/comprehensive-data")
 async def get_calcom_comprehensive_data(
     db: Session = Depends(get_db),
-    user_id: int = 1
+    current_user: User = Depends(get_optional_current_user)
 ):
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
     """
     Get comprehensive Cal.com data using the new API utility.
     Fetches user profile, bookings, event types, and calculates metrics.

@@ -455,8 +455,14 @@ async def get_integration_status(
         IntegrationStatusList: Status of each integration platform.
     """
     try:
-        # Use the authenticated user's ID if available, otherwise default to 1 for demo
-        user_id = current_user.id if current_user else 1
+        # If no authenticated user, return empty integrations list
+        if not current_user:
+            return {
+                "integrations": [],
+                "message": "Please log in to view your integrations"
+            }
+        
+        user_id = current_user.id
         logger.info(f"Getting integration status for user {user_id}")
         
         # Get all platforms from config

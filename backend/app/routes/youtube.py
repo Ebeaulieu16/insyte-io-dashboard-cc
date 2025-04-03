@@ -27,7 +27,8 @@ router = APIRouter(
 @router.get("/")
 async def get_youtube_metrics(
     slug: Optional[str] = Query(None, description="Filter by video slug"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Get YouTube metrics, optionally filtered by video slug.
@@ -38,17 +39,26 @@ async def get_youtube_metrics(
     Returns:
         dict: A dictionary containing YouTube metrics.
     """
-    # Placeholder for YouTube metrics logic (to be implemented)
-    return {
-        "message": "YouTube metrics endpoint",
-        "metrics": [
-            {
-                "video_id": "sample_id",
-                "title": "Sample Video",
-                "views": 0,
-                "likes": 0,
-                "comments": 0,
-                "engagement_rate": 0,
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+    
+    # Get user's YouTube integration
+    integration_query = select(Integration).where(
+        Integration.platform == "youtube",
+        Integration.user_id == current_user.id
+    )
+    
+    integration = await db.execute(integration_query)
+    integration = integration.scalars().first()
+    
+    if not integration or not integration.extra_data:
+        return {
+            "message": "Demo Mode - No YouTube integration found",
+            "metrics": get_demo_youtube_metrics()
+        }
                 "clicks": 0,
                 "booked_calls": 0,
                 "closed_deals": 0,
@@ -59,8 +69,14 @@ async def get_youtube_metrics(
 
 @router.get("/data")
 async def get_youtube_data(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user)
 ) -> Dict[str, Any]:
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
     """
     Get YouTube video and performance data.
     

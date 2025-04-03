@@ -24,7 +24,8 @@ router = APIRouter()
 
 @router.get("/api/calendly/data")
 async def get_calendly_data(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Get Calendly data for the current user.
@@ -33,8 +34,13 @@ async def get_calendly_data(
         dict: Calendly data including events and metrics
     """
     try:
-        # For demo/testing, use user_id=1
-        user_id = 1
+        # Get user ID from authenticated user or return error
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required"
+            )
+        user_id = current_user.id
         
         # Check if user has Calendly integration
         integration_query = select(Integration).where(
@@ -69,11 +75,9 @@ async def get_calendly_data(
                 except Exception as e:
                     logger.error(f"Error parsing extra_data: {str(e)}")
         
-        # If no API key in database, try environment variable
+        # If no API key found in database, return demo data
         if not api_key:
-            api_key = os.environ.get("CALENDLY_API_KEY")
-            if api_key:
-                logger.info("Using Calendly API key from environment variables")
+            logger.info("No Calendly API key found in database, using demo data")
         
         # If integration is connected and we have an API key, fetch real data
         if is_integration_connected and api_key:
