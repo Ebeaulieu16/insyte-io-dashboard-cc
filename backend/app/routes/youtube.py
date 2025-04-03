@@ -59,13 +59,30 @@ async def get_youtube_metrics(
             "message": "Demo Mode - No YouTube integration found",
             "metrics": get_demo_youtube_metrics()
         }
-                "clicks": 0,
-                "booked_calls": 0,
-                "closed_deals": 0,
-                "revenue": 0
+        
+    # If we have an integration with valid extra_data, get real metrics
+    try:
+        api_key = integration.extra_data.get("api_key")
+        channel_id = integration.extra_data.get("channel_id")
+        
+        if not api_key or not channel_id:
+            return {
+                "message": "YouTube integration missing API key or channel ID",
+                "metrics": get_demo_youtube_metrics()
             }
-        ]
-    }
+            
+        # Get real YouTube metrics using the API key and channel ID
+        metrics = await get_youtube_data_for_integration(api_key, channel_id)
+        return {
+            "message": "Success",
+            "metrics": metrics
+        }
+    except Exception as e:
+        logger.error(f"Error getting YouTube metrics: {str(e)}")
+        return {
+            "message": f"Error getting YouTube metrics: {str(e)}",
+            "metrics": get_demo_youtube_metrics()
+        }
 
 @router.get("/data")
 async def get_youtube_data(
