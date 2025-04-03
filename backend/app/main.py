@@ -30,7 +30,10 @@ logger.info(f"Starting application with log level: {log_level}")
 from app.routes import dashboard, youtube, sales, auth, utm, calcom, user_auth
 
 # Import database initialization
-from app.database import engine, Base
+from app.database import engine, Base, get_db
+
+# Import runtime database migrations
+from app.utils.db_migrations import run_all_runtime_migrations
 
 # Try to import the payments router - this may fail if migrations are incomplete
 try:
@@ -95,14 +98,18 @@ if payments_router_available:
 async def startup():
     """
     Initialize application on startup.
-    Creates database tables if they don't exist.
+    Creates database tables if they don't exist and runs runtime migrations.
     """
     # Create tables - using synchronous SQLAlchemy approach
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
+        
+        # Run runtime migrations
+        with get_db() as db:
+            run_all_runtime_migrations(db)
     except Exception as e:
-        logger.error(f"Error creating database tables: {e}")
+        logger.error(f"Error in startup process: {e}")
 
 @app.get("/")
 async def root():
