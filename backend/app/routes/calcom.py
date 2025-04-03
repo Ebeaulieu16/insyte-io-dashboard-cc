@@ -16,6 +16,7 @@ from app.database import get_db
 from app.models.integration import Integration, IntegrationType, IntegrationStatus, IntegrationAuthType
 from app.models.call import CallStatus
 from app.utils.calcom_api import get_calcom_data_for_integration
+from app.routes.auth import get_optional_current_user
 
 router = APIRouter(
     prefix="/api/calcom",
@@ -110,7 +111,7 @@ async def get_calcom_user_profile(
     """
     try:
         # Get Cal.com integration and API key
-        integration, api_key = get_calcom_integration(db, user_id)
+        integration, api_key = get_calcom_integration(db, current_user.id)
         
         # Make request to Cal.com API
         with httpx.Client() as client:
@@ -169,7 +170,7 @@ async def get_calcom_bookings(
     """
     try:
         # Get Cal.com integration and API key
-        integration, api_key = get_calcom_integration(db, user_id)
+        integration, api_key = get_calcom_integration(db, current_user.id)
         
         # Build query parameters
         params = {}
@@ -180,36 +181,22 @@ async def get_calcom_bookings(
         
         # Make request to Cal.com API
         with httpx.Client() as client:
-            response = client.get(
-                f"{CALCOM_API_BASE}/bookings",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                },
+            response = await client.get(
+                f"{CALCOM_API_BASE}/api/bookings",
+                headers={"Authorization": f"Bearer {api_key}"},
                 params=params
             )
-            
-            if response.status_code != 200:
-                logger.error(f"Cal.com API error: {response.status_code} - {response.text}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Cal.com API error: {response.text}"
-                )
-            
-            # Update last sync timestamp
-            integration.last_sync = datetime.utcnow()
-            db.commit()
-            
+            response.raise_for_status()
             return response.json()
             
-    except HTTPException:
-        raise
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Error getting Cal.com bookings: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting Cal.com bookings: {str(e)}"
-        )
+        return {
+            "message": f"Error getting Cal.com bookings: {str(e)}",
+            "bookings": []
+        }
 
 @router.get("/event-types")
 async def get_calcom_event_types(
@@ -232,7 +219,7 @@ async def get_calcom_event_types(
     """
     try:
         # Get Cal.com integration and API key
-        integration, api_key = get_calcom_integration(db, user_id)
+        integration, api_key = get_calcom_integration(db, current_user.id)
         
         # Make request to Cal.com API
         with httpx.Client() as client:
@@ -297,7 +284,7 @@ async def get_calcom_stats(
             start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
         
         # Get bookings
-        bookings_data = await get_calcom_bookings(start_date, end_date, db, user_id)
+        bookings_data = await get_calcom_bookings(start_date, end_date, db, current_user)
         bookings = bookings_data.get("bookings", [])
         
         # Calculate statistics using our internal status values
@@ -312,7 +299,7 @@ async def get_calcom_stats(
             status_counts[internal_status] += 1
         
         # Get event types to map IDs to names
-        event_types_data = await get_calcom_event_types(db, user_id)
+        event_types_data = await get_calcom_event_types(db, current_user)
         event_types = {str(et.get("id")): et.get("title") for et in event_types_data.get("event_types", [])}
         
         # Calculate bookings by event type
@@ -374,8 +361,8 @@ async def get_calcom_comprehensive_data(
     try:
         # Get Cal.com integration and API key
         try:
-            integration, api_key = get_calcom_integration(db, user_id)
-            logger.info(f"Found Cal.com integration for user {user_id}")
+            integration, api_key = get_calcom_integration(db, current_user.id)
+            logger.info(f"Found Cal.com integration for user {current_user.id}")
         except HTTPException as e:
             # If integration not found, return demo data
             logger.warning(f"Cal.com integration not found: {e.detail}")
