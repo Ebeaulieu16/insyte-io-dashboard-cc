@@ -199,7 +199,7 @@ async def get_youtube_data(
                         
                 else:
                     logger.warning(f"YouTube integration missing API key or channel ID for user {user_id}")
-        except Exception as e:
+            except Exception as e:
                 logger.error(f"Error processing YouTube integration: {str(e)}")
         
         # Return demo data if no integration or error occurred
