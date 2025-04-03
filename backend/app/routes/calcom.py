@@ -15,6 +15,7 @@ import json
 from app.database import get_db
 from app.models.integration import Integration, IntegrationType, IntegrationStatus, IntegrationAuthType
 from app.models.call import CallStatus
+from app.models.user import User
 from app.utils.calcom_api import get_calcom_data_for_integration
 from app.routes.auth import get_optional_current_user
 
