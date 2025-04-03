@@ -1,0 +1,3 @@
+2025-04-03 04:40:52,332 - __main__ - INFO - Starting integration ownership migration
+2025-04-03 04:40:52,645 - __main__ - WARNING - No active users found. Nothing to migrate.
+2025-04-03 04:40:52,646 - __main__ - INFO - Integration ownership migration script completed

@@ -2,7 +2,7 @@
 User authentication routes.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Dict
@@ -60,14 +60,15 @@ async def register(
         "token_type": "bearer"
     }
 
-@router.post("/login")
-async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+@router.post("/token")
+async def token(
+    email: str = Form(...),
+    password: str = Form(...),
     db: Session = Depends(get_db)
 ):
     """Log in a user."""
     # Find user
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -75,7 +76,7 @@ async def login(
         )
     
     # Verify password
-    if not bcrypt.checkpw(form_data.password.encode(), user.hashed_password.encode()):
+    if not bcrypt.checkpw(password.encode(), user.hashed_password.encode()):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
@@ -86,7 +87,11 @@ async def login(
     
     return {
         "access_token": access_token,
-        "token_type": "bearer"
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email
+        }
     }
 
 @router.get("/me")
