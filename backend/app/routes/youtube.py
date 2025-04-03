@@ -14,6 +14,10 @@ import json
 
 from app.database import get_db
 from app.utils.youtube_api import get_youtube_data_for_integration
+from app.auth.dependencies import get_optional_current_user
+from app.models.user import User
+from app.models.integration import Integration
+from sqlalchemy import select
 
 # Set up logging
 logger = logging.getLogger(__name__)
