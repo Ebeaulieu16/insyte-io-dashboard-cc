@@ -39,7 +39,7 @@ class Integration(BaseModel):
     # User who owns this integration
     # For backwards compatibility, we'll use id as a fallback if user_id doesn't exist
     # This is temporary until the migrations are fully applied
-    user_id = Column(Integer, nullable=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
     
     # Integration type and status
     platform = Column(String(50), nullable=False)

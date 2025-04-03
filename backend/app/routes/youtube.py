@@ -93,253 +93,195 @@ async def get_youtube_data(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_optional_current_user)
 ) -> Dict[str, Any]:
+    """
+    Get YouTube video and performance data.
+    
+    This endpoint checks if a YouTube integration is connected for the current user
+    and returns real data if available. Otherwise, it returns demo data.
+    
+    Args:
+        db: Database session
+        current_user: Current authenticated user
+        
+    Returns:
+        dict: A dictionary containing YouTube metrics and video data
+    """
     if not current_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
-    """
-    Get YouTube video and performance data.
     
-    This endpoint checks if any integration is connected and returns real-looking data
-    if there's at least one active integration. Otherwise, it returns demo data.
+    user_id = current_user.id
+    logger.info(f"Getting YouTube data for user_id: {user_id}")
     
-    Args:
-        db: Database session
-        
-    Returns:
-        dict: A dictionary containing YouTube metrics and video data
-    """
     try:
-        # Check if any integration is connected
-        is_any_integration_connected = False
+        # Check if user has a YouTube integration connected
+        has_youtube_integration = False
+        youtube_integration = None
         
-        # Query the integrations table to check if any platform is connected
+        # First, get the user's YouTube integration
         try:
-            # First check if the table exists and has is_connected column
-            table_info = {}
-            try:
-                # Check if integrations table has is_connected column
-                table_check_query = """
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'integrations' 
-                AND table_schema = 'public'
-                """
-                result = await db.execute(text(table_check_query))
-                columns = result.fetchall()
-                
-                # Create a dictionary of column existence
-                table_info = {
-                    "has_is_connected": any(col[0] == 'is_connected' for col in columns),
-                    "has_status": any(col[0] == 'status' for col in columns),
-                }
-                
-                logger.debug(f"Integration table columns: {table_info}")
-            except Exception as e:
-                logger.error(f"Error checking table schema: {e}")
-                table_info = {"has_is_connected": False, "has_status": False}
-            
-            # Build the query based on available columns to check for any connected integration
-            if table_info.get("has_is_connected", False):
-                query = """
-                SELECT COUNT(*) FROM integrations 
-                WHERE is_connected = true
-                """
-            elif table_info.get("has_status", False):
-                query = """
-                SELECT COUNT(*) FROM integrations 
-                WHERE status = 'connected'
-                """
-            else:
-                query = """
-                SELECT COUNT(*) FROM integrations
-                """
-            
-            # Log the detailed query we're about to execute
-            logger.info(f"Executing query for YouTube connection check: {query}")
-            
-            result = await db.execute(text(query))
-            count = result.scalar()
-            
-            # Log the count result
-            logger.info(f"Found {count} connected integrations for YouTube data")
-            
-            is_any_integration_connected = count > 0
-            logger.info(f"Integration connection status: {'Connected' if is_any_integration_connected else 'Not connected'}")
-            
-            # Also try checking specific platforms as a backup
-            if not is_any_integration_connected:
-                # Try to check if any YouTube integration exists specifically
-                backup_query = """
-                SELECT platform FROM integrations 
-                WHERE platform = 'youtube'
-                """
-                backup_result = await db.execute(text(backup_query))
-                backup_rows = backup_result.fetchall()
-                
-                if len(backup_rows) > 0:
-                    logger.info(f"Found YouTube platform via backup query: {backup_rows}")
-                    is_any_integration_connected = True
-            
-        except Exception as e:
-            logger.error(f"Error checking integration connections: {e}")
-            is_any_integration_connected = False
-        
-        # Check if we actually have connected integrations
-        logger.info(f"Integration connection status: {'Connected' if is_any_integration_connected else 'Not connected'}")
-        
-        # Demo data for YouTube videos
-        demo_videos = [
-            {
-                "id": 1,
-                "title": "Scale Your Agency with Systems & Automations",
-                "views": 32450,
-                "likes": 1850,
-                "comments": 324,
-                "avgViewDuration": "8:45",
-                "clicks": 423,
-                "bookedCalls": 86,
-                "closedDeals": 52,
-                "revenue": 302600,
-            },
-            {
-                "id": 2,
-                "title": "Content Marketing Secrets for 2023",
-                "views": 28750,
-                "likes": 1620,
-                "comments": 287,
-                "avgViewDuration": "7:32",
-                "clicks": 378,
-                "bookedCalls": 75,
-                "closedDeals": 43,
-                "revenue": 250600,
-            },
-            {
-                "id": 3,
-                "title": "LinkedIn Lead Gen Strategy Masterclass",
-                "views": 24320,
-                "likes": 1320,
-                "comments": 245,
-                "avgViewDuration": "9:15",
-                "clicks": 312,
-                "bookedCalls": 68,
-                "closedDeals": 38,
-                "revenue": 221400,
-            },
-            {
-                "id": 4,
-                "title": "SEO Tips for Digital Agencies",
-                "views": 21580,
-                "likes": 1150,
-                "comments": 198,
-                "avgViewDuration": "6:48",
-                "clicks": 287,
-                "bookedCalls": 55,
-                "closedDeals": 32,
-                "revenue": 186400,
-            },
-            {
-                "id": 5,
-                "title": "Email Marketing for Client Attraction",
-                "views": 18970,
-                "likes": 980,
-                "comments": 164,
-                "avgViewDuration": "8:12",
-                "clicks": 235,
-                "bookedCalls": 48,
-                "closedDeals": 28,
-                "revenue": 163100,
-            },
-        ]
-        
-        if not is_any_integration_connected:
-            logger.info("No integrations found, returning demo data")
-            # Return static demo data
-            return {
-                "message": "Demo data - No integrations connected",
-                "videos": demo_videos
-            }
-        
-        # At least one integration is connected, fetch real data from YouTube API
-        logger.info("Fetching real data from YouTube API")
-        
-        try:
-            # Get YouTube API key and channel ID from the integration
             integration_query = """
-            SELECT account_id, extra_data 
-            FROM integrations 
-            WHERE platform = 'youtube' AND 
-            (status = 'connected' OR is_connected = true)
-            LIMIT 1
+                SELECT id, platform, user_id, extra_data 
+                FROM integrations 
+                WHERE platform = 'youtube' AND user_id = :user_id
+                AND (status = 'connected' OR is_connected = TRUE)
             """
+            result = await db.execute(text(integration_query), {"user_id": user_id})
+            youtube_integration = result.fetchone()
             
-            result = await db.execute(text(integration_query))
-            integration = result.fetchone()
-            
-            if not integration:
-                logger.warning("No YouTube integration found in database despite connection check")
-                # Fall back to demo data
-                return {
-                    "message": "Demo data - No YouTube integration found",
-                    "videos": demo_videos
-                }
-            
-            channel_id = integration[0]  # account_id contains the channel ID
-            extra_data = integration[1]
-            
-            # Parse extra_data to get the API key
-            api_key = None
-            if extra_data:
-                try:
-                    if isinstance(extra_data, str):
-                        data = json.loads(extra_data)
-                    else:
-                        data = extra_data
-                    
-                    api_key = data.get("api_key")
-                except (json.JSONDecodeError, AttributeError) as e:
-                    logger.error(f"Error parsing extra_data: {e}")
-            
-            # If we couldn't get the API key from extra_data, try environment variables
-            if not api_key:
-                import os
-                api_key = os.getenv("YOUTUBE_API_KEY")
-                logger.info("Using YouTube API key from environment variables")
-            
-            if not api_key:
-                logger.error("No YouTube API key found")
-                # Fall back to demo data
-                return {
-                    "message": "Demo data - No YouTube API key found",
-                    "videos": demo_videos
-                }
-            
-            # Fetch real data from YouTube API
-            youtube_data = await get_youtube_data_for_integration(api_key, channel_id)
-            
-            if not youtube_data.get("videos"):
-                logger.warning("No videos found from YouTube API")
-                # Fall back to demo data
-                return {
-                    "message": "Demo data - No videos found from YouTube API",
-                    "videos": demo_videos
-                }
-            
-            logger.info(f"Successfully fetched {len(youtube_data['videos'])} videos from YouTube API")
-            return youtube_data
+            has_youtube_integration = youtube_integration is not None
+            logger.info(f"YouTube integration found: {has_youtube_integration}")
             
         except Exception as e:
-            logger.error(f"Error fetching real YouTube data: {e}")
-            # Fall back to demo data on error
-            return {
-                "message": f"Demo data - Error fetching real data: {str(e)}",
-                "videos": demo_videos
-            }
+            logger.error(f"Error checking YouTube integration: {str(e)}")
+        
+        # If user has a YouTube integration with valid credentials
+        if has_youtube_integration and youtube_integration and youtube_integration.extra_data:
+            try:
+                # Extract API key and channel ID
+                extra_data = youtube_integration.extra_data
+                if isinstance(extra_data, str):
+                    import json
+                    extra_data = json.loads(extra_data)
+                
+                api_key = extra_data.get('api_key')
+                channel_id = extra_data.get('channel_id')
+                
+                if api_key and channel_id:
+                    logger.info(f"Found valid YouTube credentials for user {user_id}")
+                    
+                    # Try to get real video data from the database
+                    videos_query = """
+                        SELECT * FROM video_analytics
+                        WHERE user_id = :user_id AND is_demo = FALSE
+                        ORDER BY created_at DESC
+                        LIMIT 10
+                    """
+                    videos_result = await db.execute(text(videos_query), {"user_id": user_id})
+                    real_videos = videos_result.fetchall()
+                    
+                    if real_videos and len(real_videos) > 0:
+                        logger.info(f"Found {len(real_videos)} real videos for user {user_id}")
+                        
+                        # Convert real videos to response format
+                        videos = []
+                        for video in real_videos:
+                            videos.append({
+                                "id": video.id,
+                                "title": video.title,
+                                "views": video.views or 0,
+                                "likes": video.likes or 0,
+                                "comments": video.comments or 0,
+                                "avgViewDuration": video.avg_view_duration or "0:00",
+                                "clicks": video.clicks or 0,
+                                "bookedCalls": video.booked_calls or 0,
+                                "closedDeals": video.closed_deals or 0,
+                                "revenue": video.revenue or 0,
+                            })
+                        
+                        return {
+                            "videos": videos,
+                            "is_demo": False,
+                            "message": "Real video data retrieved successfully"
+                        }
+                    else:
+                        logger.info(f"No real videos found for user {user_id}, syncing from YouTube API")
+                        # TODO: Implement API sync here
+                        # For now, return demo data with a note
+                        demo_videos = get_demo_youtube_videos()
+                        return {
+                            "videos": demo_videos,
+                            "is_demo": True,
+                            "message": "No real videos found yet. Please sync your YouTube channel or add videos."
+                        }
+                        
+                else:
+                    logger.warning(f"YouTube integration missing API key or channel ID for user {user_id}")
+            except Exception as e:
+                logger.error(f"Error processing YouTube integration: {str(e)}")
+        
+        # Return demo data if no integration or error occurred
+        logger.info(f"Using demo data for user {user_id}")
+        demo_videos = get_demo_youtube_videos()
+        return {
+            "videos": demo_videos,
+            "is_demo": True,
+            "message": "Demo data - Connect your YouTube channel to see real data"
+        }
         
     except Exception as e:
-        logger.error(f"Error fetching YouTube data: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch YouTube data: {str(e)}"
-        )
+        logger.error(f"Error in get_youtube_data: {str(e)}")
+        # Return demo data as fallback
+        return {
+            "videos": get_demo_youtube_videos(),
+            "is_demo": True,
+            "message": f"Error retrieving data: {str(e)}"
+        }
+
+# Define helper function for demo YouTube videos
+def get_demo_youtube_videos() -> List[Dict[str, Any]]:
+    """Return demo YouTube video data for users without real data."""
+    return [
+        {
+            "id": 1,
+            "title": "Scale Your Agency with Systems & Automations",
+            "views": 32450,
+            "likes": 1850,
+            "comments": 324,
+            "avgViewDuration": "8:45",
+            "clicks": 423,
+            "bookedCalls": 86,
+            "closedDeals": 52,
+            "revenue": 302600,
+        },
+        {
+            "id": 2,
+            "title": "Content Marketing Secrets for 2023",
+            "views": 28750,
+            "likes": 1620,
+            "comments": 287,
+            "avgViewDuration": "7:32",
+            "clicks": 378,
+            "bookedCalls": 75,
+            "closedDeals": 43,
+            "revenue": 250600,
+        },
+        {
+            "id": 3,
+            "title": "LinkedIn Lead Gen Strategy Masterclass",
+            "views": 24320,
+            "likes": 1320,
+            "comments": 245,
+            "avgViewDuration": "9:15",
+            "clicks": 312,
+            "bookedCalls": 68,
+            "closedDeals": 38,
+            "revenue": 221400,
+        },
+        {
+            "id": 4,
+            "title": "SEO Tips for Digital Agencies",
+            "views": 21580,
+            "likes": 1150,
+            "comments": 198,
+            "avgViewDuration": "6:48",
+            "clicks": 287,
+            "bookedCalls": 55,
+            "closedDeals": 32,
+            "revenue": 186400,
+        },
+        {
+            "id": 5,
+            "title": "Email Marketing for Client Attraction",
+            "views": 18970,
+            "likes": 980,
+            "comments": 164,
+            "avgViewDuration": "8:12",
+            "clicks": 235,
+            "bookedCalls": 48,
+            "closedDeals": 28,
+            "revenue": 163100,
+        },
+    ]

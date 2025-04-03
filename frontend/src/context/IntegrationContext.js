@@ -17,15 +17,50 @@ const IntegrationContext = createContext({
 const INTEGRATIONS_STORAGE_KEY = 'insyte_integrations';
 const INTEGRATIONS_TIMESTAMP_KEY = 'insyte_integrations_timestamp';
 
+// Helper to get user-specific storage key
+const getUserSpecificKey = (baseKey) => {
+  const token = localStorage.getItem('token');
+  return token ? `${baseKey}_${token.substring(0, 10)}` : baseKey;
+};
+
+// Helper to clear integration data
+const clearIntegrationData = () => {
+  // Clear all integration-related data
+  localStorage.removeItem(INTEGRATIONS_STORAGE_KEY);
+  localStorage.removeItem(INTEGRATIONS_TIMESTAMP_KEY);
+  
+  // Clear any user-specific keys that might exist
+  const allKeys = Object.keys(localStorage);
+  const integrationKeys = allKeys.filter(key => 
+    key.startsWith(INTEGRATIONS_STORAGE_KEY) || 
+    key.startsWith(INTEGRATIONS_TIMESTAMP_KEY)
+  );
+  
+  integrationKeys.forEach(key => localStorage.removeItem(key));
+};
+
 // Context provider component
 export const IntegrationProvider = ({ children }) => {
   // Initialize state from local storage if available
   const getInitialIntegrations = () => {
     try {
-      const storedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
+      // Try to get user-specific integrations first
+      const userSpecificKey = getUserSpecificKey(INTEGRATIONS_STORAGE_KEY);
+      const storedIntegrations = localStorage.getItem(userSpecificKey);
+      
       if (storedIntegrations) {
-        console.log('Loaded integrations from local storage');
+        console.log('Loaded user-specific integrations from local storage');
         return JSON.parse(storedIntegrations);
+      }
+      
+      // Fall back to generic storage only if no user-specific data found
+      // and we're not logged in (to avoid mixing data)
+      if (!localStorage.getItem('token')) {
+        const genericIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
+        if (genericIntegrations) {
+          console.log('Loaded generic integrations from local storage (no user logged in)');
+          return JSON.parse(genericIntegrations);
+        }
       }
     } catch (error) {
       console.error('Failed to load integrations from local storage:', error);
@@ -83,16 +118,17 @@ export const IntegrationProvider = ({ children }) => {
     try {
       // Don't save empty integrations
       if (integrations.length > 0) {
-        // Save to general storage
-        localStorage.setItem(INTEGRATIONS_STORAGE_KEY, JSON.stringify(integrations));
-        console.log('Saved integrations to local storage');
+        const userSpecificKey = getUserSpecificKey(INTEGRATIONS_STORAGE_KEY);
         
-        // Also save to user-specific storage if a user is logged in
-        const userToken = localStorage.getItem('token');
-        if (userToken) {
-          localStorage.setItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`, 
-            JSON.stringify(integrations));
+        // If user is logged in, only save to user-specific storage
+        // This prevents data leakage between users
+        if (localStorage.getItem('token')) {
+          localStorage.setItem(userSpecificKey, JSON.stringify(integrations));
           console.log('Saved integrations to user-specific local storage');
+        } else {
+          // If no user is logged in, save to general storage
+          localStorage.setItem(INTEGRATIONS_STORAGE_KEY, JSON.stringify(integrations));
+          console.log('Saved integrations to generic local storage (no user logged in)');
         }
       }
     } catch (error) {
@@ -347,201 +383,52 @@ export const IntegrationProvider = ({ children }) => {
                 localStorage.setItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`, 
                   JSON.stringify(response.data.integrations));
               } catch (e) {
-                console.error('Failed to save user-specific integrations to local storage:', e);
+                console.error('Failed to save integrations to user-specific local storage:', e);
               }
-            }
-            
-            // Merge with our local integration cache
-            const mergedIntegrations = response.data.integrations.map(integration => {
-              const localIntegration = localIntegrationsRef.current[integration.platform];
-              
-              // If we have a local cache for this platform and it's newer than what the API returned
-              // and the API is showing it as disconnected but our local cache says it's connected
-              if (localIntegration && 
-                  integration.status !== 'connected' && 
-                  localIntegration.status === 'connected' &&
-                  // Check if the local integration was updated in the last 5 minutes
-                  // This prevents using very old local integrations
-                  localIntegration.timestamp && 
-                  (Date.now() - localIntegration.timestamp) < 5 * 60 * 1000) {
-                console.log(`Using cached integration for ${integration.platform} instead of API response (local is newer)`);
-                return {
-                  ...integration,
-                  status: 'connected',
-                  account_name: localIntegration.account_name || integration.account_name,
-                  is_connected: true
-                };
-              }
-              
-              // Otherwise, trust the server response
-              console.log(`Using server data for ${integration.platform} integration`);
-              return integration;
-            });
-            
-            setIntegrations(mergedIntegrations);
-          } else {
-            // Check if we have any local integrations before falling back to default
-            const localIntegrationsArray = Object.values(localIntegrationsRef.current);
-            
-            if (localIntegrationsArray.length > 0) {
-              console.log('Using cached local integrations instead of API response');
-              setIntegrations(localIntegrationsArray);
-            } else {
-              // Try user-specific integrations first (if user is logged in)
-              const userToken = localStorage.getItem('token');
-              if (userToken) {
-                const userSpecificIntegrations = localStorage.getItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`);
-                if (userSpecificIntegrations) {
-                  try {
-                    const parsedIntegrations = JSON.parse(userSpecificIntegrations);
-                    if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
-                      console.log('Using user-specific integrations from local storage');
-                      setIntegrations(parsedIntegrations);
-                      return;
-                    }
-                  } catch (e) {
-                    console.error('Error parsing user-specific stored integrations:', e);
-                  }
-                }
-              }
-              
-              // Then check generic local storage
-              const storedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
-              if (storedIntegrations) {
-                try {
-                  const parsedIntegrations = JSON.parse(storedIntegrations);
-                  if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
-                    console.log('Using integrations from local storage');
-                    setIntegrations(parsedIntegrations);
-                    return;
-                  }
-                } catch (e) {
-                  console.error('Error parsing stored integrations:', e);
-                }
-              }
-              
-              // Fallback for when the API returns a successful response but with no integrations
-              console.warn('API returned success but no integrations data, using defaults');
-              setIntegrations([
-                { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
-                { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
-                { platform: "calendly", status: "disconnected", account_name: null, last_sync: null },
-                { platform: "calcom", status: "disconnected", account_name: null, last_sync: null }
-              ]);
             }
           }
         }
       } catch (error) {
-        console.error('Failed to fetch integration status:', error);
-        
-        // Check if we have any local integrations before setting defaults
-        if (isMounted) {
-          // First try user-specific integrations (if user is logged in)
-          const userToken = localStorage.getItem('token');
-          if (userToken) {
-            const userSpecificIntegrations = localStorage.getItem(`${INTEGRATIONS_STORAGE_KEY}_${userToken.substring(0, 10)}`);
-            if (userSpecificIntegrations) {
-              try {
-                const parsedIntegrations = JSON.parse(userSpecificIntegrations);
-                if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
-                  console.log('API error, using user-specific integrations from local storage');
-                  setIntegrations(parsedIntegrations);
-                  return;
-                }
-              } catch (e) {
-                console.error('Error parsing user-specific stored integrations:', e);
-              }
-            }
-          }
-          
-          // Then try to use our in-memory local integrations
-          const localIntegrationsArray = Object.values(localIntegrationsRef.current);
-          
-          if (localIntegrationsArray.length > 0) {
-            console.log('API error, using cached local integrations from memory');
-            setIntegrations(localIntegrationsArray);
-          } else {
-            // Then try to use local storage
-            const storedIntegrations = localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
-            if (storedIntegrations) {
-              try {
-                const parsedIntegrations = JSON.parse(storedIntegrations);
-                if (Array.isArray(parsedIntegrations) && parsedIntegrations.length > 0) {
-                  console.log('API error, using integrations from local storage');
-                  setIntegrations(parsedIntegrations);
-                  return;
-                }
-              } catch (e) {
-                console.error('Error parsing stored integrations:', e);
-              }
-            }
-            
-            // Finally fall back to defaults
-            console.log('API error, no cached integrations, using defaults');
-            setIntegrations([
-              { platform: "youtube", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "stripe", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "calendly", status: "disconnected", account_name: null, last_sync: null },
-              { platform: "calcom", status: "disconnected", account_name: null, last_sync: null }
-            ]);
-          }
-        }
+        console.error('Error fetching integration status:', error);
       } finally {
-        // Clear the loading timeout if it hasn't triggered yet
-        clearTimeout(loadingTimeout);
-        
         if (isMounted) {
-          // Delay turning off loading state to prevent UI flashing
-          // This ensures the loading state doesn't toggle too quickly
-          loadingOffTimeout = setTimeout(() => {
-            setLoading(false);
-            fetchInProgressRef.current = false;
-          }, 300);
-        } else {
           fetchInProgressRef.current = false;
+          if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+          }
+          if (loadingOffTimeout) {
+            clearTimeout(loadingOffTimeout);
+          }
+          setLoading(false);
         }
       }
     };
-
-    // Set a timeout to ensure we don't get stuck in loading state
-    const stuckTimeout = setTimeout(() => {
-      if (isMounted) {
-        setLoading(false);
-        fetchInProgressRef.current = false;
-      }
-    }, 5000); // 5 seconds max loading time
     
     fetchIntegrationStatus();
-    
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      isMounted = false;
-      clearTimeout(loadingTimeout);
-      clearTimeout(loadingOffTimeout);
-      clearTimeout(stuckTimeout);
-    };
-  }, [refreshTrigger]);
-
-  // Provide context value
-  const contextValue = {
-    integrations,
-    loading,
-    isAnyIntegrationConnected,
-    isIntegrationConnected,
-    refreshIntegrations,
-    addLocalIntegration,
-    removeLocalIntegration,
-    debugIntegrationState,
-  };
+  }, []);
 
   return (
-    <IntegrationContext.Provider value={contextValue}>
+    <IntegrationContext.Provider
+      value={{
+        integrations,
+        loading,
+        isAnyIntegrationConnected,
+        isIntegrationConnected,
+        refreshIntegrations,
+        addLocalIntegration,
+        removeLocalIntegration,
+        debugIntegrationState,
+      }}
+    >
       {children}
     </IntegrationContext.Provider>
   );
 };
 
-// Custom hook to use the integration context
-export const useIntegration = () => useContext(IntegrationContext);
-
-export default IntegrationContext; 
+export const useIntegration = () => {
+  const context = useContext(IntegrationContext);
+  if (context === undefined) {
+    throw new Error('useIntegration must be used within an IntegrationProvider');
+  }
+  return context;
+};

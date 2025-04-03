@@ -10,6 +10,27 @@ const AuthContext = createContext();
 // Export the context for use in components
 export const useAuth = () => useContext(AuthContext);
 
+// Helper function to clear integration data 
+// (defined here to avoid circular dependencies with IntegrationContext)
+const clearIntegrationData = () => {
+  // Helper function to clear all integration-related data from localStorage
+  const INTEGRATIONS_STORAGE_KEY = 'insyte_integrations';
+  const INTEGRATIONS_TIMESTAMP_KEY = 'insyte_integrations_timestamp';
+  
+  // Clear all integration-related data
+  localStorage.removeItem(INTEGRATIONS_STORAGE_KEY);
+  localStorage.removeItem(INTEGRATIONS_TIMESTAMP_KEY);
+  
+  // Clear any user-specific keys that might exist
+  const allKeys = Object.keys(localStorage);
+  const integrationKeys = allKeys.filter(key => 
+    key.startsWith(INTEGRATIONS_STORAGE_KEY) || 
+    key.startsWith(INTEGRATIONS_TIMESTAMP_KEY)
+  );
+  
+  integrationKeys.forEach(key => localStorage.removeItem(key));
+};
+
 // Provider component
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -128,9 +149,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     
-    // Keep integration data in localStorage
-    // This way integrations persist across logins
-    console.log("Logging out but preserving integration data");
+    // Clear all integration data when logging out to prevent data leakage
+    clearIntegrationData();
+    console.log("Logged out and cleared all integration data");
     
     toast.info("You have been logged out.");
   };
