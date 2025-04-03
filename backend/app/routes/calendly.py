@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.models.integration import Integration
+from app.models.user import User
 from app.utils.calendly_api import get_calendly_data_for_integration
 
 # Set up logging

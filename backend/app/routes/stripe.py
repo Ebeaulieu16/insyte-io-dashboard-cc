@@ -13,6 +13,7 @@ import json
 
 from app.database import get_db
 from app.models.integration import Integration
+from app.models.user import User
 from app.utils.stripe_api import get_stripe_data_for_integration
 
 # Set up logging
