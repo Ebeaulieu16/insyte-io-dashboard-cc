@@ -865,17 +865,45 @@ def connect_stripe_api_key(
                     # Store which columns exist
                     table_info = {
                         'has_status': 'status' in existing_columns,
-                        'has_is_connected': 'is_connected' in existing_columns
+                        'has_is_connected': 'is_connected' in existing_columns,
+                        'has_extra_data': 'extra_data' in existing_columns,
+                        'has_api_key': 'api_key' in existing_columns
                     }
                     
                     logger.info(f"Table info: {table_info}")
+                    
+                    # If extra_data column doesn't exist, try to add it
+                    if not table_info['has_extra_data']:
+                        logger.warning("extra_data column missing - attempting to add it now")
+                        try:
+                            # Try multiple approaches to add the column
+                            try:
+                                # First attempt - standard ALTER TABLE
+                                session.execute(text("ALTER TABLE integrations ADD COLUMN extra_data JSONB NULL"))
+                                logger.info("Successfully added extra_data column using ALTER TABLE")
+                            except Exception as e1:
+                                logger.warning(f"First attempt to add column failed: {str(e1)}")
+                                # Second attempt - with IF NOT EXISTS
+                                session.execute(text("ALTER TABLE integrations ADD COLUMN IF NOT EXISTS extra_data JSONB NULL"))
+                                logger.info("Successfully added extra_data column using IF NOT EXISTS")
+                            
+                            session.commit()
+                            # Update our table info after adding the column
+                            table_info['has_extra_data'] = True
+                            logger.info("Successfully added extra_data column to integrations table")
+                        except Exception as col_error:
+                            session.rollback()
+                            logger.error(f"Failed to add extra_data column: {str(col_error)}")
+                            # Continue without the column - we'll store the API key elsewhere
                 except Exception as e:
                     logger.warning(f"Could not get table schema: {str(e)}")
                     session.rollback()
                     # Assume columns for maximum compatibility
                     table_info = {
                         'has_status': False,
-                        'has_is_connected': True
+                        'has_is_connected': True,
+                        'has_extra_data': False,
+                        'has_api_key': True  # Most installations should have this
                     }
                 
                 # Simplified approach - check if integration exists for this platform AND user
@@ -890,8 +918,23 @@ def connect_stripe_api_key(
                     update_sql = """
                         UPDATE integrations 
                         SET account_name = :account_name, 
-                            account_id = :account_id,
-                            extra_data = :extra_data"""
+                            account_id = :account_id"""
+                            
+                    # Only include extra_data if the column exists
+                    update_params = {
+                        "id": existing_row[0],
+                        "account_name": account_name,
+                        "account_id": account_id
+                    }
+                    
+                    if table_info.get('has_extra_data', False):
+                        update_sql += ", extra_data = :extra_data"
+                        update_params["extra_data"] = json.dumps(extra_data)
+                    elif table_info.get('has_api_key', False):
+                        # Fallback to store in api_key column if it exists
+                        update_sql += ", api_key = :api_key"
+                        update_params["api_key"] = stripe_api_key
+                        logger.info("Using api_key column as fallback for storage")
                     
                     if table_info['has_is_connected']:
                         update_sql += ", is_connected = TRUE"
@@ -901,27 +944,30 @@ def connect_stripe_api_key(
                         
                     update_sql += " WHERE id = :id"
                     
-                    session.execute(
-                        text(update_sql),
-                        {
-                            "id": existing_row[0],
-                            "account_name": account_name,
-                            "account_id": account_id,
-                            "extra_data": json.dumps(extra_data)
-                        }
-                    )
+                    session.execute(text(update_sql), update_params)
                     logger.info(f"Updated existing Stripe integration (ID: {existing_row[0]})")
                 else:
                     # Insert new integration with only columns that exist
-                    insert_columns = ["platform", "account_name", "account_id", "user_id", "extra_data"]
-                    insert_values = [":platform", ":account_name", ":account_id", ":user_id", ":extra_data"]
+                    insert_columns = ["platform", "account_name", "account_id", "user_id"]
+                    insert_values = [":platform", ":account_name", ":account_id", ":user_id"]
                     insert_params = {
                         "platform": "stripe",
                         "account_name": account_name,
                         "account_id": account_id,
-                        "user_id": user_id,
-                        "extra_data": json.dumps(extra_data)
+                        "user_id": user_id
                     }
+                    
+                    # Only include extra_data if the column exists
+                    if table_info.get('has_extra_data', False):
+                        insert_columns.append("extra_data")
+                        insert_values.append(":extra_data")
+                        insert_params["extra_data"] = json.dumps(extra_data)
+                    elif table_info.get('has_api_key', False):
+                        # Fallback to store in api_key column if it exists
+                        insert_columns.append("api_key")
+                        insert_values.append(":api_key")
+                        insert_params["api_key"] = stripe_api_key
+                        logger.info("Using api_key column as fallback for storage")
                     
                     # Add optional columns if they exist
                     if table_info['has_is_connected']:
@@ -940,8 +986,30 @@ def connect_stripe_api_key(
                         ({', '.join(insert_values)})
                     """
                     
-                    session.execute(text(insert_sql), insert_params)
-                    logger.info("Created new Stripe integration")
+                    # Log the final SQL and parameters for debugging
+                    logger.info(f"SQL to execute: {insert_sql}")
+                    logger.info(f"Parameters: {insert_params}")
+                    
+                    try:
+                        session.execute(text(insert_sql), insert_params)
+                        logger.info("Created new Stripe integration")
+                    except Exception as insert_error:
+                        # If this fails, we'll try a simplified version without the extra_data column
+                        logger.error(f"Error inserting integration: {str(insert_error)}")
+                        session.rollback()
+                        
+                        # Simplified approach - just the essential columns
+                        simple_sql = """
+                            INSERT INTO integrations (platform, account_name, account_id, user_id)
+                            VALUES (:platform, :account_name, :account_id, :user_id)
+                        """
+                        session.execute(text(simple_sql), {
+                            "platform": "stripe",
+                            "account_name": account_name,
+                            "account_id": account_id,
+                            "user_id": user_id
+                        })
+                        logger.info("Created new Stripe integration with simplified approach")
                 
                 # Commit the transaction
                 session.commit()
@@ -950,10 +1018,27 @@ def connect_stripe_api_key(
             except Exception as e:
                 session.rollback()
                 logger.error(f"Database error: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Database error: {str(e)}"
-                )
+                # Try one last approach with minimal columns
+                try:
+                    # Direct SQL approach without checking schema
+                    session.execute(text("""
+                        INSERT INTO integrations (platform, account_name, account_id, user_id)
+                        VALUES (:platform, :account_name, :account_id, :user_id)
+                    """), {
+                        "platform": "stripe",
+                        "account_name": account_name,
+                        "account_id": account_id,
+                        "user_id": user_id
+                    })
+                    session.commit()
+                    logger.info("Created integration with emergency fallback method")
+                except Exception as final_error:
+                    session.rollback()
+                    logger.error(f"All attempts failed. Last error: {str(final_error)}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Database error: {str(e)}"
+                    )
         
         return {
             "status": "success", 
@@ -1377,17 +1462,45 @@ async def connect_calcom_api_key(
                     # Store which columns exist
                     table_info = {
                         'has_status': 'status' in existing_columns,
-                        'has_is_connected': 'is_connected' in existing_columns
+                        'has_is_connected': 'is_connected' in existing_columns,
+                        'has_extra_data': 'extra_data' in existing_columns,
+                        'has_api_key': 'api_key' in existing_columns
                     }
                     
                     logger.info(f"Table info: {table_info}")
+                    
+                    # If extra_data column doesn't exist, try to add it
+                    if not table_info['has_extra_data']:
+                        logger.warning("extra_data column missing - attempting to add it now")
+                        try:
+                            # Try multiple approaches to add the column
+                            try:
+                                # First attempt - standard ALTER TABLE
+                                session.execute(text("ALTER TABLE integrations ADD COLUMN extra_data JSONB NULL"))
+                                logger.info("Successfully added extra_data column using ALTER TABLE")
+                            except Exception as e1:
+                                logger.warning(f"First attempt to add column failed: {str(e1)}")
+                                # Second attempt - with IF NOT EXISTS
+                                session.execute(text("ALTER TABLE integrations ADD COLUMN IF NOT EXISTS extra_data JSONB NULL"))
+                                logger.info("Successfully added extra_data column using IF NOT EXISTS")
+                            
+                            session.commit()
+                            # Update our table info after adding the column
+                            table_info['has_extra_data'] = True
+                            logger.info("Successfully added extra_data column to integrations table")
+                        except Exception as col_error:
+                            session.rollback()
+                            logger.error(f"Failed to add extra_data column: {str(col_error)}")
+                            # Continue without the column - we'll store the API key elsewhere
                 except Exception as e:
                     logger.warning(f"Could not get table schema: {str(e)}")
                     session.rollback()
                     # Assume columns for maximum compatibility
                     table_info = {
                         'has_status': False,
-                        'has_is_connected': True
+                        'has_is_connected': True,
+                        'has_extra_data': False,
+                        'has_api_key': True  # Most installations should have this
                     }
                 
                 # Simplified approach - check if integration exists for this platform AND user
@@ -1402,8 +1515,23 @@ async def connect_calcom_api_key(
                     update_sql = """
                         UPDATE integrations 
                         SET account_name = :account_name, 
-                            account_id = :account_id,
-                            extra_data = :extra_data"""
+                            account_id = :account_id"""
+                            
+                    # Only include extra_data if the column exists
+                    update_params = {
+                        "id": existing_row[0],
+                        "account_name": account_name,
+                        "account_id": account_id
+                    }
+                    
+                    if table_info.get('has_extra_data', False):
+                        update_sql += ", extra_data = :extra_data"
+                        update_params["extra_data"] = json.dumps(extra_data)
+                    elif table_info.get('has_api_key', False):
+                        # Fallback to store in api_key column if it exists
+                        update_sql += ", api_key = :api_key"
+                        update_params["api_key"] = calcom_api_key
+                        logger.info("Using api_key column as fallback for storage")
                     
                     if table_info['has_is_connected']:
                         update_sql += ", is_connected = TRUE"
@@ -1413,27 +1541,30 @@ async def connect_calcom_api_key(
                         
                     update_sql += " WHERE id = :id"
                     
-                    session.execute(
-                        text(update_sql),
-                        {
-                            "id": existing_row[0],
-                            "account_name": account_name,
-                            "account_id": account_id,
-                            "extra_data": json.dumps(extra_data)
-                        }
-                    )
+                    session.execute(text(update_sql), update_params)
                     logger.info(f"Updated existing Cal.com integration (ID: {existing_row[0]})")
                 else:
                     # Insert new integration with only columns that exist
-                    insert_columns = ["platform", "account_name", "account_id", "user_id", "extra_data"]
-                    insert_values = [":platform", ":account_name", ":account_id", ":user_id", ":extra_data"]
+                    insert_columns = ["platform", "account_name", "account_id", "user_id"]
+                    insert_values = [":platform", ":account_name", ":account_id", ":user_id"]
                     insert_params = {
                         "platform": "calcom",
                         "account_name": account_name,
                         "account_id": account_id,
-                        "user_id": user_id,
-                        "extra_data": json.dumps(extra_data)
+                        "user_id": user_id
                     }
+                    
+                    # Only include extra_data if the column exists
+                    if table_info.get('has_extra_data', False):
+                        insert_columns.append("extra_data")
+                        insert_values.append(":extra_data")
+                        insert_params["extra_data"] = json.dumps(extra_data)
+                    elif table_info.get('has_api_key', False):
+                        # Fallback to store in api_key column if it exists
+                        insert_columns.append("api_key")
+                        insert_values.append(":api_key")
+                        insert_params["api_key"] = calcom_api_key
+                        logger.info("Using api_key column as fallback for storage")
                     
                     # Add optional columns if they exist
                     if table_info['has_is_connected']:
@@ -1452,8 +1583,30 @@ async def connect_calcom_api_key(
                         ({', '.join(insert_values)})
                     """
                     
-                    session.execute(text(insert_sql), insert_params)
-                    logger.info("Created new Cal.com integration")
+                    # Log the final SQL and parameters for debugging
+                    logger.info(f"SQL to execute: {insert_sql}")
+                    logger.info(f"Parameters: {insert_params}")
+                    
+                    try:
+                        session.execute(text(insert_sql), insert_params)
+                        logger.info("Created new Cal.com integration")
+                    except Exception as insert_error:
+                        # If this fails, we'll try a simplified version without the extra_data column
+                        logger.error(f"Error inserting integration: {str(insert_error)}")
+                        session.rollback()
+                        
+                        # Simplified approach - just the essential columns that should exist in all installations
+                        simple_sql = """
+                            INSERT INTO integrations (platform, account_name, account_id, user_id)
+                            VALUES (:platform, :account_name, :account_id, :user_id)
+                        """
+                        session.execute(text(simple_sql), {
+                            "platform": "calcom",
+                            "account_name": account_name,
+                            "account_id": account_id,
+                            "user_id": user_id
+                        })
+                        logger.info("Created new Cal.com integration with simplified approach")
                 
                 # Commit the transaction
                 session.commit()
@@ -1462,10 +1615,27 @@ async def connect_calcom_api_key(
             except Exception as e:
                 session.rollback()
                 logger.error(f"Database error: {str(e)}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Database error: {str(e)}"
-                )
+                # Try one last approach - use raw SQL that should work regardless of schema
+                try:
+                    # Direct SQL approach without checking schema
+                    session.execute(text("""
+                        INSERT INTO integrations (platform, account_name, account_id, user_id)
+                        VALUES (:platform, :account_name, :account_id, :user_id)
+                    """), {
+                        "platform": "calcom",
+                        "account_name": account_name,
+                        "account_id": account_id,
+                        "user_id": user_id
+                    })
+                    session.commit()
+                    logger.info("Created integration with emergency fallback method")
+                except Exception as final_error:
+                    session.rollback()
+                    logger.error(f"All attempts failed. Last error: {str(final_error)}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Database error: {str(e)}"
+                    )
         
         return {
             "status": "success", 

@@ -105,9 +105,23 @@ async def startup():
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
         
-        # Run runtime migrations
-        with get_db() as db:
+        # Run runtime migrations - fixed to properly use the session generator
+        try:
+            # Get the generator
+            db_gen = get_db()
+            # Get the session from the generator
+            db = next(db_gen)
+            
+            # Run migrations
             run_all_runtime_migrations(db)
+            
+            # Close the session
+            try:
+                db.close()  # Explicitly close the session
+            except Exception as close_error:
+                logger.warning(f"Error closing database session: {close_error}")
+        except Exception as migration_error:
+            logger.error(f"Error in runtime migrations: {migration_error}")
     except Exception as e:
         logger.error(f"Error in startup process: {e}")
 
