@@ -46,8 +46,8 @@ export default {
   },
 
   brand: {
-    main: "#0075ff",
-    focus: "#0075ff",
+    main: "#FF8700",
+    focus: "#FF8700",
   },
 
   black: {
@@ -92,15 +92,15 @@ export default {
 
   // Other colors
   info: {
-    main: "#0075ff",
-    focus: "#3993fe",
+    main: "#FF8700",
+    focus: "#FF8700",
     charts: {
-      100: "#2d8cfc",
-      200: "#2370cc",
-      300: "#2370cc",
-      400: "#0f4a91",
-      500: "#073a78",
-      600: "#012654",
+      100: "#FF8700",
+      200: "#FF8700",
+      300: "#FF8700",
+      400: "#FF8700",
+      500: "#FF8700",
+      600: "#FF8700",
     },
   },
 
@@ -133,69 +133,69 @@ export default {
   gradients: {
     navbar: {
       deg: "123.64deg",
-      main: "rgba(255, 255, 255, 0) -22.38%",
-      state: "rgba(255, 255, 255, 0.039) 70.38%",
+      main: "rgba(255, 135, 0, 0) -22.38%",
+      state: "rgba(255, 135, 0, 0.039) 70.38%",
     },
 
     sidenav: {
       deg: "127.09",
-      main: "rgba(6, 11, 40, 0.94) 19.41%",
-      state: "rgba(10, 14, 35, 0.49) 76.65%",
+      main: "rgba(26, 26, 26, 0.94) 19.41%",
+      state: "rgba(26, 26, 26, 0.49) 76.65%",
     },
 
     borderLight: {
       angle: "94.43% 69.43% at 50% 50%",
-      main: "#ffffff 0%",
+      main: "#FFFFFF 0%",
       state: "rgba(255, 255, 255, 0) 100%",
     },
 
     borderDark: {
       angle: "69.43% 69.43% at 50% 50%",
-      main: "#ffffff 0%",
+      main: "#FFFFFF 0%",
       state: "rgba(255, 255, 255, 0) 100%",
     },
 
     cover: {
       deg: "159.02",
-      main: "#0f123b 14.25%",
-      state: "#090d2e 56.45%",
-      stateSecondary: "#020515 86.14%",
+      main: "#0A0A0A 14.25%",
+      state: "#0A0A0A 56.45%",
+      stateSecondary: "#0A0A0A 86.14%",
     },
 
     cardDark: {
       deg: "126.97",
-      main: "rgba(6, 11, 40, 0.74) 28.26%",
-      state: "rgba(10, 14, 35, 0.71) 91.2%",
+      main: "rgba(26, 26, 26, 0.74) 28.26%",
+      state: "rgba(26, 26, 26, 0.71) 91.2%",
     },
 
     cardLight: {
       deg: "127.09",
-      main: "rgba(6, 11, 40, 0.94) 19.41%",
-      state: "rgba(10, 14, 35, 0.49) 76.65%",
+      main: "rgba(26, 26, 26, 0.94) 19.41%",
+      state: "rgba(26, 26, 26, 0.49) 76.65%",
     },
 
     card: {
       deg: "127.09",
-      main: "rgba(6, 11, 40, 0.94) 19.41%",
-      state: "rgba(10, 14, 35, 0.49) 76.65%",
+      main: "rgba(26, 26, 26, 0.94) 19.41%",
+      state: "rgba(26, 26, 26, 0.49) 76.65%",
     },
 
     menu: {
       deg: "126.97",
-      main: "#05153f 28.26%",
-      state: "#072561 91.2%",
+      main: "#1A1A1A 28.26%",
+      state: "#1A1A1A 91.2%",
     },
 
     cardContent: {
       deg: "126.97",
-      main: "rgb(6, 11, 40) 28.26%",
-      state: "rgb(10, 14, 35) 91.2%",
+      main: "rgb(26, 26, 26) 28.26%",
+      state: "rgb(26, 26, 26) 91.2%",
     },
 
     box: {
       deg: "126.97",
-      main: "rgba(6, 11, 40, 0.74) 28.26%",
-      state: "rgba(10, 14, 35, 0.71) 91.2%",
+      main: "rgba(26, 26, 26, 0.74) 28.26%",
+      state: "rgba(26, 26, 26, 0.71) 91.2%",
     },
 
     bill: {
