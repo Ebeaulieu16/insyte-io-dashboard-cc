@@ -24,16 +24,16 @@
 export default {
   // Vision UI Colors
   background: {
-    default: "#f8f9fa",
+    default: "#0A0A0A",
   },
 
   sidenav: {
-    button: "#1a1f37",
+    button: "#1A1A1A",
   },
 
   text: {
-    main: "#a0aec0",
-    focus: "#ffffff",
+    main: "#FFFFFF",
+    focus: "#FFFFFF",
   },
 
   transparent: {
@@ -57,13 +57,13 @@ export default {
   },
 
   primary: {
-    main: "#4318ff",
-    focus: "#9f7aea",
+    main: "#FF8700",
+    focus: "#FF8700",
   },
 
   secondary: {
-    main: "#0f1535",
-    focus: "#131538",
+    main: "#1A1A1A",
+    focus: "#1A1A1A",
   },
 
   lightblue: {
@@ -77,20 +77,16 @@ export default {
   },
 
   grey: {
-    100: "#edf2f7",
-    200: "#e2e8f0",
-    300: "#cbd5e0",
-    400: "#a0aec0",
-    500: "#718096",
-    600: "#4a5568",
-    700: "#2d3748",
-    800: "#1a202a",
-    900: "#171923",
+    100: "#EAEAEA",
+    200: "#B0B0B0",
+    300: "#2B2B2B",
+    400: "#1A1A1A",
+    500: "#0A0A0A",
   },
 
   borderCol: {
-    main: "#56577a",
-    red: "#e31a1a",
+    main: "#2B2B2B",
+    red: "#FF8700",
     navbar: "rgba(226, 232, 240, 0.3)",
   },
 
