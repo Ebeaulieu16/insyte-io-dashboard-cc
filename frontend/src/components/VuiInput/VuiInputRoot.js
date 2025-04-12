@@ -169,6 +169,7 @@ export default styled(InputBase)(({ theme, ownerState }) => {
     },
     "& .MuiInputBase-input": {
       backgroundColor: "#2B2B2B !important",
+      color: "#FFFFFF !important",
     },
     "& fieldset": {
       border: "none !important",
@@ -182,10 +183,21 @@ export default styled(InputBase)(({ theme, ownerState }) => {
     ...((iconDirection === "left" || iconDirection === "right") && withIconStyles()),
     "& ::placeholder": {
       color: "#656565 !important",
-      fontSize: "14px",
-      opacity: 1,
+      fontSize: "14px !important",
+      opacity: "1 !important",
     },
-
+    "& ::-webkit-input-placeholder": { /* Chrome/Opera/Safari */
+      color: "#656565 !important",
+      fontSize: "14px !important",
+    },
+    "& ::-moz-placeholder": { /* Firefox 19+ */
+      color: "#656565 !important",
+      fontSize: "14px !important",
+    },
+    "& :-ms-input-placeholder": { /* IE 10+ */
+      color: "#656565 !important",
+      fontSize: "14px !important",
+    },
     "&.Mui-focused": {
       borderColor: "#2B2B2B",
       paddingLeft: focusedPaddingLeftValue,

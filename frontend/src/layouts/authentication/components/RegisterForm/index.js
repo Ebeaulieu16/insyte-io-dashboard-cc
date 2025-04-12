@@ -88,6 +88,14 @@ function RegisterForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              sx={{
+                "& input": {
+                  color: "#FFFFFF !important"
+                },
+                "& ::placeholder": {
+                  color: "#656565 !important"
+                }
+              }}
             />
           </VuiBox>
           <VuiBox mb={2}>
@@ -107,6 +115,14 @@ function RegisterForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              sx={{
+                "& input": {
+                  color: "#FFFFFF !important"
+                },
+                "& ::placeholder": {
+                  color: "#656565 !important"
+                }
+              }}
             />
           </VuiBox>
           <VuiBox mb={2}>
@@ -126,6 +142,14 @@ function RegisterForm() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              sx={{
+                "& input": {
+                  color: "#FFFFFF !important"
+                },
+                "& ::placeholder": {
+                  color: "#656565 !important"
+                }
+              }}
             />
           </VuiBox>
           <VuiBox display="flex" alignItems="center">
