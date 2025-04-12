@@ -27,7 +27,7 @@ export default {
     background: dark.body,
   },
   body: {
-    background: `url(${bgAdmin})`,
+    background: "#0A0A0A",
     backgroundSize: "cover",
   },
   "*, *::before, *::after": {
