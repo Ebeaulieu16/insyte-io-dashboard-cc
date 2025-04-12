@@ -230,7 +230,7 @@ function UTMLinkTable({ dateRange }) {
   if (loading) {
     return (
       <VuiBox display="flex" justifyContent="center" alignItems="center" height="200px">
-        <CircularProgress color="info" />
+        <CircularProgress color="primary" />
       </VuiBox>
     );
   }
@@ -355,7 +355,7 @@ function UTMLinkTable({ dateRange }) {
                 </TableCell>
                 <TableCell>
                   <VuiBox display="flex" alignItems="center">
-                    <VuiTypography variant="button" color="info" sx={{ mr: 1 }}>
+                    <VuiTypography variant="button" color="primary" sx={{ mr: 1 }}>
                       {`${baseDomain}/go/${link.slug}`}
                     </VuiTypography>
                     <IconButton 
