@@ -104,9 +104,9 @@ export const lineChartOptions = {
       opacityTo: 0,
       stops: [],
     },
-    colors: ["#0075FF", "#2CD9FF"],
+    colors: ["#FF8700", "#FF4E00"],
   },
-  colors: ["#0075FF", "#2CD9FF"],
+  colors: ["#FF8700", "#FF4E00"],
 };
 
 // Revenue per YouTube video bar chart data
