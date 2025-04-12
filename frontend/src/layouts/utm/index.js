@@ -73,7 +73,7 @@ function UTMGenerator() {
         <VuiBox>
           <Grid container spacing={3}>
             <Grid item xs={12}>
-              <Card>
+              <Card sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
                 <VuiBox display="flex" flexDirection="column" height="100%">
                   <VuiBox pt={3} px={3} display="flex" justifyContent="space-between" alignItems="center">
                     <VuiBox>

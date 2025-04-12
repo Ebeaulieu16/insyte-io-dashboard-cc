@@ -82,6 +82,48 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
   },
 }));
 
+// Global table style override
+const StyledTable = styled(Table)(({ theme }) => ({
+  backgroundColor: 'transparent !important',
+  '& .MuiTableCell-root': {
+    backgroundColor: 'transparent !important',
+    borderBottom: 'none !important'
+  },
+  '& .MuiTableBody-root': {
+    backgroundColor: 'transparent !important'
+  },
+  '& .MuiTableHead-root': {
+    backgroundColor: 'transparent !important'
+  },
+  '& .MuiTableRow-root': {
+    backgroundColor: 'transparent !important'
+  },
+  '& .MuiTableRow-head': {
+    backgroundColor: 'transparent !important'
+  },
+  '& .MuiTableHead-root .MuiTableRow-root': {
+    backgroundColor: 'transparent !important'
+  },
+  '& .MuiTableHead-root .MuiTableCell-root': {
+    backgroundColor: 'transparent !important'
+  }
+}));
+
+// Global style to override MUI defaults
+import { createGlobalStyle } from 'styled-components';
+
+const GlobalTableStyle = createGlobalStyle`
+  .MuiTableContainer-root,
+  .MuiTable-root,
+  .MuiTableHead-root,
+  .MuiTableBody-root,
+  .MuiTableRow-root,
+  .MuiTableCell-root {
+    background-color: transparent !important;
+    border-bottom: none !important;
+  }
+`;
+
 function UTMLinkTable({ dateRange }) {
   const history = useHistory();
   const [links, setLinks] = useState([]);
@@ -247,6 +289,7 @@ function UTMLinkTable({ dateRange }) {
   if (filteredLinks.length === 0) {
     return (
       <VuiBox>
+        <GlobalTableStyle />
         <VuiBox mb={2} display="flex" justifyContent="flex-end">
           <Search>
             <SearchIconWrapper>
@@ -274,6 +317,7 @@ function UTMLinkTable({ dateRange }) {
 
   return (
     <VuiBox>
+      <GlobalTableStyle />
       <VuiBox mb={2} display="flex" justifyContent="flex-end">
         <Search>
           <SearchIconWrapper>
@@ -288,8 +332,8 @@ function UTMLinkTable({ dateRange }) {
         </Search>
       </VuiBox>
       
-      <TableContainer component={Paper} sx={{ backgroundColor: "transparent" }}>
-        <Table sx={{ minWidth: 650 }} aria-label="UTM links table">
+      <TableContainer component={Box} sx={{ backgroundColor: "transparent" }}>
+        <StyledTable sx={{ minWidth: 650 }} aria-label="UTM links table">
           <TableHead>
             <TableRow>
               <TableCell>
@@ -344,11 +388,12 @@ function UTMLinkTable({ dateRange }) {
                   transition: 'background-color 0.2s',
                   '&:hover': { 
                     backgroundColor: 'rgba(26, 31, 55, 0.7)'
-                  }
+                  },
+                  backgroundColor: 'transparent'
                 }}
                 onClick={() => handleRowClick(link.slug)}
               >
-                <TableCell component="th" scope="row">
+                <TableCell>
                   <VuiTypography variant="button" color="white">
                     {link.title}
                   </VuiTypography>
@@ -411,7 +456,7 @@ function UTMLinkTable({ dateRange }) {
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </StyledTable>
       </TableContainer>
     </VuiBox>
   );
