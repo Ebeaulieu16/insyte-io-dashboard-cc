@@ -207,392 +207,390 @@ function UTMLinkGenerator({ onSuccess }) {
   };
 
   return (
-    <Card>
-      <VuiBox p={3}>
-        <VuiTypography variant="h5" color="white" mb={1}>
-          Create Links with UTM Parameters
-        </VuiTypography>
-        <VuiTypography variant="caption" color="text" fontWeight="regular" mb={3}>
-          Generate links with UTM parameters to track your marketing campaigns
-        </VuiTypography>
-        
-        {apiError && (
-          <Alert severity="error" sx={{ mb: 3, backgroundColor: "rgba(244, 67, 53, 0.1)", color: "#f44335" }}>
-            {apiError}
-          </Alert>
-        )}
-        
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            {/* Left Column */}
-            <Grid item xs={12} md={6}>
-              {/* Base URL field */}
-              <VuiBox mb={2}>
-                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
-                  Base URL
+    <VuiBox>
+      <VuiTypography variant="h5" color="white" mb={1}>
+        Create Links with UTM Parameters
+      </VuiTypography>
+      <VuiTypography variant="caption" color="text" fontWeight="regular" mb={3}>
+        Generate links with UTM parameters to track your marketing campaigns
+      </VuiTypography>
+      
+      {apiError && (
+        <Alert severity="error" sx={{ mb: 3, backgroundColor: "rgba(244, 67, 53, 0.1)", color: "#f44335" }}>
+          {apiError}
+        </Alert>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <Grid container spacing={3}>
+          {/* Left Column */}
+          <Grid item xs={12} md={6}>
+            {/* Base URL field */}
+            <VuiBox mb={2}>
+              <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                Base URL
+              </VuiTypography>
+              <VuiInput
+                type="url"
+                placeholder="https://insyte.io/webinar"
+                value={destinationUrl}
+                onChange={handleDestinationUrlChange}
+                error={!!errors.destinationUrl}
+                success={destinationUrl && !errors.destinationUrl}
+                sx={{
+                  backgroundColor: "#2B2B2B !important",
+                  border: "none !important",
+                  "& input": {
+                    color: "#FFFFFF !important",
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& ::placeholder": {
+                    color: "#656565 !important",
+                    fontSize: "14px !important",
+                    opacity: "1 !important"
+                  },
+                  "& .MuiInputBase-input": {
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& fieldset": {
+                    border: "none !important"
+                  },
+                  "&.Mui-focused": {
+                    boxShadow: "none !important",
+                    border: "none !important"
+                  }
+                }}
+              />
+              {errors.destinationUrl && (
+                <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
+                  {errors.destinationUrl}
                 </VuiTypography>
-                <VuiInput
-                  type="url"
-                  placeholder="https://insyte.io/webinar"
-                  value={destinationUrl}
-                  onChange={handleDestinationUrlChange}
-                  error={!!errors.destinationUrl}
-                  success={destinationUrl && !errors.destinationUrl}
-                  sx={{
-                    backgroundColor: "#2B2B2B !important",
-                    border: "none !important",
-                    "& input": {
-                      color: "#FFFFFF !important",
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& ::placeholder": {
-                      color: "#656565 !important",
-                      fontSize: "14px !important",
-                      opacity: "1 !important"
-                    },
-                    "& .MuiInputBase-input": {
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& fieldset": {
-                      border: "none !important"
-                    },
-                    "&.Mui-focused": {
-                      boxShadow: "none !important",
-                      border: "none !important"
-                    }
-                  }}
-                />
-                {errors.destinationUrl && (
-                  <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
-                    {errors.destinationUrl}
-                  </VuiTypography>
-                )}
-              </VuiBox>
-              
-              {/* Video Title field */}
-              <VuiBox mb={2}>
-                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
-                  Video Title
-                </VuiTypography>
-                <VuiInput
-                  type="text"
-                  placeholder="e.g., How to Scale Your YouTube Channel"
-                  value={title}
-                  onChange={handleTitleChange}
-                  error={!!errors.title}
-                  success={title && !errors.title}
-                  sx={{
-                    backgroundColor: "#2B2B2B !important",
-                    border: "none !important",
-                    "& input": {
-                      color: "#FFFFFF !important",
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& ::placeholder": {
-                      color: "#656565 !important",
-                      fontSize: "14px !important",
-                      opacity: "1 !important"
-                    },
-                    "& .MuiInputBase-input": {
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& fieldset": {
-                      border: "none !important"
-                    },
-                    "&.Mui-focused": {
-                      boxShadow: "none !important",
-                      border: "none !important"
-                    }
-                  }}
-                />
-                {errors.title && (
-                  <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
-                    {errors.title}
-                  </VuiTypography>
-                )}
-              </VuiBox>
-              
-              {/* Slug field */}
-              <VuiBox mb={2}>
-                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
-                  Slug (appears in the URL)
-                </VuiTypography>
-                <VuiInput
-                  type="text"
-                  placeholder="e.g., scale-your-content"
-                  value={slug}
-                  onChange={handleSlugChange}
-                  error={!!errors.slug}
-                  success={slug && !errors.slug}
-                  sx={{
-                    backgroundColor: "#2B2B2B !important",
-                    border: "none !important",
-                    "& input": {
-                      color: "#FFFFFF !important",
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& ::placeholder": {
-                      color: "#656565 !important",
-                      fontSize: "14px !important",
-                      opacity: "1 !important"
-                    },
-                    "& .MuiInputBase-input": {
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& fieldset": {
-                      border: "none !important"
-                    },
-                    "&.Mui-focused": {
-                      boxShadow: "none !important",
-                      border: "none !important"
-                    }
-                  }}
-                />
-                {errors.slug ? (
-                  <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
-                    {errors.slug}
-                  </VuiTypography>
-                ) : (
-                  <VuiTypography component="div" variant="button" color="text" fontWeight="regular" mt={0.5}>
-                    Lowercase letters, numbers, and hyphens only
-                  </VuiTypography>
-                )}
-              </VuiBox>
-            </Grid>
+              )}
+            </VuiBox>
             
-            {/* Right Column */}
-            <Grid item xs={12} md={6}>
-              {/* UTM Source field */}
-              <VuiBox mb={2}>
-                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
-                  Source (required)
+            {/* Video Title field */}
+            <VuiBox mb={2}>
+              <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                Video Title
+              </VuiTypography>
+              <VuiInput
+                type="text"
+                placeholder="e.g., How to Scale Your YouTube Channel"
+                value={title}
+                onChange={handleTitleChange}
+                error={!!errors.title}
+                success={title && !errors.title}
+                sx={{
+                  backgroundColor: "#2B2B2B !important",
+                  border: "none !important",
+                  "& input": {
+                    color: "#FFFFFF !important",
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& ::placeholder": {
+                    color: "#656565 !important",
+                    fontSize: "14px !important",
+                    opacity: "1 !important"
+                  },
+                  "& .MuiInputBase-input": {
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& fieldset": {
+                    border: "none !important"
+                  },
+                  "&.Mui-focused": {
+                    boxShadow: "none !important",
+                    border: "none !important"
+                  }
+                }}
+              />
+              {errors.title && (
+                <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
+                  {errors.title}
                 </VuiTypography>
-                <select
-                  value={utmSource}
-                  onChange={(e) => setUtmSource(e.target.value)}
-                  style={{
-                    backgroundColor: "#2B2B2B",
-                    color: "white",
-                    padding: "12px",
-                    border: "none",
-                    borderRadius: "10px",
-                    width: "100%",
-                    outline: "none",
-                    appearance: "menulist-button",
-                    fontSize: "14px"
-                  }}
-                >
-                  {sourceOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </VuiBox>
-              
-              {/* UTM Medium field */}
-              <VuiBox mb={2}>
-                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
-                  Medium (required)
-                </VuiTypography>
-                <select
-                  value={utmMedium}
-                  onChange={(e) => setUtmMedium(e.target.value)}
-                  style={{
-                    backgroundColor: "#2B2B2B",
-                    color: "white",
-                    padding: "12px",
-                    border: "none",
-                    borderRadius: "10px",
-                    width: "100%",
-                    outline: "none",
-                    appearance: "menulist-button",
-                    fontSize: "14px"
-                  }}
-                >
-                  {mediumOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </VuiBox>
-              
-              {/* UTM Campaign field */}
-              <VuiBox mb={2}>
-                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
-                  Campaign Name
-                </VuiTypography>
-                <VuiInput
-                  type="text"
-                  placeholder="e.g., webinar-sales"
-                  value={utmCampaign}
-                  onChange={(e) => setUtmCampaign(e.target.value)}
-                  sx={{
-                    backgroundColor: "#2B2B2B !important",
-                    border: "none !important",
-                    "& input": {
-                      color: "#FFFFFF !important",
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& ::placeholder": {
-                      color: "#656565 !important",
-                      fontSize: "14px !important",
-                      opacity: "1 !important"
-                    },
-                    "& .MuiInputBase-input": {
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& fieldset": {
-                      border: "none !important"
-                    },
-                    "&.Mui-focused": {
-                      boxShadow: "none !important",
-                      border: "none !important"
-                    }
-                  }}
-                />
-                <VuiTypography component="div" variant="caption" color="text" fontWeight="regular" mt={0.5}>
-                  Used for paid campaigns (keywords)
-                </VuiTypography>
-              </VuiBox>
-              
-              {/* UTM Content field */}
-              <VuiBox mb={2}>
-                <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
-                  Content (optional)
-                </VuiTypography>
-                <VuiInput
-                  type="text"
-                  placeholder="content-description"
-                  value={utmContent}
-                  onChange={(e) => setUtmContent(e.target.value)}
-                  sx={{
-                    backgroundColor: "#2B2B2B !important",
-                    border: "none !important",
-                    "& input": {
-                      color: "#FFFFFF !important",
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& ::placeholder": {
-                      color: "#656565 !important",
-                      fontSize: "14px !important",
-                      opacity: "1 !important"
-                    },
-                    "& .MuiInputBase-input": {
-                      backgroundColor: "#2B2B2B !important"
-                    },
-                    "& fieldset": {
-                      border: "none !important"
-                    },
-                    "&.Mui-focused": {
-                      boxShadow: "none !important",
-                      border: "none !important"
-                    }
-                  }}
-                />
-                <VuiTypography component="div" variant="caption" color="text" fontWeight="regular" mt={0.5}>
-                  Used to differentiate versions of similar content
-                </VuiTypography>
-              </VuiBox>
-            </Grid>
+              )}
+            </VuiBox>
             
-            {/* Submit Button */}
-            <Grid item xs={12}>
-              <VuiButton
-                type="submit"
-                color="info"
-                variant="contained"
-                disabled={isLoading}
-                fullWidth
-                startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <IoLinkSharp />}
+            {/* Slug field */}
+            <VuiBox mb={2}>
+              <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                Slug (appears in the URL)
+              </VuiTypography>
+              <VuiInput
+                type="text"
+                placeholder="e.g., scale-your-content"
+                value={slug}
+                onChange={handleSlugChange}
+                error={!!errors.slug}
+                success={slug && !errors.slug}
+                sx={{
+                  backgroundColor: "#2B2B2B !important",
+                  border: "none !important",
+                  "& input": {
+                    color: "#FFFFFF !important",
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& ::placeholder": {
+                    color: "#656565 !important",
+                    fontSize: "14px !important",
+                    opacity: "1 !important"
+                  },
+                  "& .MuiInputBase-input": {
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& fieldset": {
+                    border: "none !important"
+                  },
+                  "&.Mui-focused": {
+                    boxShadow: "none !important",
+                    border: "none !important"
+                  }
+                }}
+              />
+              {errors.slug ? (
+                <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
+                  {errors.slug}
+                </VuiTypography>
+              ) : (
+                <VuiTypography component="div" variant="button" color="text" fontWeight="regular" mt={0.5}>
+                  Lowercase letters, numbers, and hyphens only
+                </VuiTypography>
+              )}
+            </VuiBox>
+          </Grid>
+          
+          {/* Right Column */}
+          <Grid item xs={12} md={6}>
+            {/* UTM Source field */}
+            <VuiBox mb={2}>
+              <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                Source (required)
+              </VuiTypography>
+              <select
+                value={utmSource}
+                onChange={(e) => setUtmSource(e.target.value)}
+                style={{
+                  backgroundColor: "#2B2B2B",
+                  color: "white",
+                  padding: "12px",
+                  border: "none",
+                  borderRadius: "10px",
+                  width: "100%",
+                  outline: "none",
+                  appearance: "menulist-button",
+                  fontSize: "14px"
+                }}
               >
-                {isLoading ? "Generating..." : "Generate UTM Link"}
-              </VuiButton>
-            </Grid>
+                {sourceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </VuiBox>
+            
+            {/* UTM Medium field */}
+            <VuiBox mb={2}>
+              <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                Medium (required)
+              </VuiTypography>
+              <select
+                value={utmMedium}
+                onChange={(e) => setUtmMedium(e.target.value)}
+                style={{
+                  backgroundColor: "#2B2B2B",
+                  color: "white",
+                  padding: "12px",
+                  border: "none",
+                  borderRadius: "10px",
+                  width: "100%",
+                  outline: "none",
+                  appearance: "menulist-button",
+                  fontSize: "14px"
+                }}
+              >
+                {mediumOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </VuiBox>
+            
+            {/* UTM Campaign field */}
+            <VuiBox mb={2}>
+              <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                Campaign Name
+              </VuiTypography>
+              <VuiInput
+                type="text"
+                placeholder="e.g., webinar-sales"
+                value={utmCampaign}
+                onChange={(e) => setUtmCampaign(e.target.value)}
+                sx={{
+                  backgroundColor: "#2B2B2B !important",
+                  border: "none !important",
+                  "& input": {
+                    color: "#FFFFFF !important",
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& ::placeholder": {
+                    color: "#656565 !important",
+                    fontSize: "14px !important",
+                    opacity: "1 !important"
+                  },
+                  "& .MuiInputBase-input": {
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& fieldset": {
+                    border: "none !important"
+                  },
+                  "&.Mui-focused": {
+                    boxShadow: "none !important",
+                    border: "none !important"
+                  }
+                }}
+              />
+              <VuiTypography component="div" variant="caption" color="text" fontWeight="regular" mt={0.5}>
+                Used for paid campaigns (keywords)
+              </VuiTypography>
+            </VuiBox>
+            
+            {/* UTM Content field */}
+            <VuiBox mb={2}>
+              <VuiTypography component="label" variant="button" color="white" fontWeight="medium" mb={1} display="block">
+                Content (optional)
+              </VuiTypography>
+              <VuiInput
+                type="text"
+                placeholder="content-description"
+                value={utmContent}
+                onChange={(e) => setUtmContent(e.target.value)}
+                sx={{
+                  backgroundColor: "#2B2B2B !important",
+                  border: "none !important",
+                  "& input": {
+                    color: "#FFFFFF !important",
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& ::placeholder": {
+                    color: "#656565 !important",
+                    fontSize: "14px !important",
+                    opacity: "1 !important"
+                  },
+                  "& .MuiInputBase-input": {
+                    backgroundColor: "#2B2B2B !important"
+                  },
+                  "& fieldset": {
+                    border: "none !important"
+                  },
+                  "&.Mui-focused": {
+                    boxShadow: "none !important",
+                    border: "none !important"
+                  }
+                }}
+              />
+              <VuiTypography component="div" variant="caption" color="text" fontWeight="regular" mt={0.5}>
+                Used to differentiate versions of similar content
+              </VuiTypography>
+            </VuiBox>
+          </Grid>
+          
+          {/* Submit Button */}
+          <Grid item xs={12}>
+            <VuiButton
+              type="submit"
+              color="info"
+              variant="contained"
+              disabled={isLoading}
+              fullWidth
+              startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <IoLinkSharp />}
+            >
+              {isLoading ? "Generating..." : "Generate UTM Link"}
+            </VuiButton>
+          </Grid>
 
-            {/* Generated Link Display */}
-            {generatedLink && (
-              <Grid item xs={12}>
-                <VuiBox mt={3}>
-                  <VuiTypography variant="h6" color="white" mb={2}>
-                    Generated UTM Link
-                  </VuiTypography>
-                  <Card 
-                    sx={{ 
-                      background: "linear-gradient(127.09deg, rgba(6, 11, 40, 0.94) 19.41%, rgba(10, 14, 35, 0.49) 76.65%)",
-                      border: "1px solid rgba(22, 249, 170, 0.3)",
-                      borderRadius: "15px"
-                    }}
-                  >
-                    <VuiBox p={2}>
-                      <VuiBox display="flex" alignItems="center" mb={1}>
-                        <IoCheckmarkCircle size="18px" color="#16f9aa" />
-                        <VuiTypography variant="button" color="success" fontWeight="medium" ml={1}>
-                          UTM Link Generated Successfully
-                        </VuiTypography>
-                      </VuiBox>
-
-                      <VuiBox
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        bgcolor="rgba(22, 249, 170, 0.1)"
-                        p={2}
-                        borderRadius="10px"
-                      >
-                        <VuiTypography variant="button" color="white" fontWeight="regular" sx={{ wordBreak: "break-all" }}>
-                          {generatedLink}
-                        </VuiTypography>
-                        <CopyToClipboard text={generatedLink} onCopy={handleCopy}>
-                          <VuiButton color="primary" variant="outlined" size="small" sx={{ ml: 1, minWidth: "auto" }}>
-                            <IoCopy size="18px" />
-                          </VuiButton>
-                        </CopyToClipboard>
-                      </VuiBox>
-                      <VuiTypography variant="caption" color="text" fontWeight="regular" mt={1} display="block">
-                        Use this link in your YouTube videos. When viewers click it, we'll track their journey through your funnel.
+          {/* Generated Link Display */}
+          {generatedLink && (
+            <Grid item xs={12}>
+              <VuiBox mt={3}>
+                <VuiTypography variant="h6" color="white" mb={2}>
+                  Generated UTM Link
+                </VuiTypography>
+                <Card 
+                  sx={{ 
+                    background: "linear-gradient(127.09deg, rgba(6, 11, 40, 0.94) 19.41%, rgba(10, 14, 35, 0.49) 76.65%)",
+                    border: "1px solid rgba(22, 249, 170, 0.3)",
+                    borderRadius: "15px"
+                  }}
+                >
+                  <VuiBox p={2}>
+                    <VuiBox display="flex" alignItems="center" mb={1}>
+                      <IoCheckmarkCircle size="18px" color="#16f9aa" />
+                      <VuiTypography variant="button" color="success" fontWeight="medium" ml={1}>
+                        UTM Link Generated Successfully
                       </VuiTypography>
                     </VuiBox>
-                  </Card>
-                </VuiBox>
-              </Grid>
-            )}
-          </Grid>
-        </form>
-        
-        {/* Copy toast notification */}
-        <Snackbar
-          open={showCopyToast}
-          autoHideDuration={3000}
-          onClose={() => setShowCopyToast(false)}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+
+                    <VuiBox
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      bgcolor="rgba(22, 249, 170, 0.1)"
+                      p={2}
+                      borderRadius="10px"
+                    >
+                      <VuiTypography variant="button" color="white" fontWeight="regular" sx={{ wordBreak: "break-all" }}>
+                        {generatedLink}
+                      </VuiTypography>
+                      <CopyToClipboard text={generatedLink} onCopy={handleCopy}>
+                        <VuiButton color="primary" variant="outlined" size="small" sx={{ ml: 1, minWidth: "auto" }}>
+                          <IoCopy size="18px" />
+                        </VuiButton>
+                      </CopyToClipboard>
+                    </VuiBox>
+                    <VuiTypography variant="caption" color="text" fontWeight="regular" mt={1} display="block">
+                      Use this link in your YouTube videos. When viewers click it, we'll track their journey through your funnel.
+                    </VuiTypography>
+                  </VuiBox>
+                </Card>
+              </VuiBox>
+            </Grid>
+          )}
+        </Grid>
+      </form>
+      
+      {/* Copy toast notification */}
+      <Snackbar
+        open={showCopyToast}
+        autoHideDuration={3000}
+        onClose={() => setShowCopyToast(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity="success"
+          sx={{
+            backgroundColor: "rgba(22, 249, 170, 0.1)",
+            color: "#16f9aa",
+            borderRadius: "10px",
+            border: "1px solid rgba(22, 249, 170, 0.3)",
+          }}
+          icon={<IoCheckmarkCircle size="24px" />}
+          action={
+            <VuiButton
+              color="error"
+              size="small"
+              onClick={() => setShowCopyToast(false)}
+              sx={{ minWidth: "auto", p: 0.5 }}
+            >
+              <IoClose size="18px" />
+            </VuiButton>
+          }
         >
-          <Alert
-            severity="success"
-            sx={{
-              backgroundColor: "rgba(22, 249, 170, 0.1)",
-              color: "#16f9aa",
-              borderRadius: "10px",
-              border: "1px solid rgba(22, 249, 170, 0.3)",
-            }}
-            icon={<IoCheckmarkCircle size="24px" />}
-            action={
-              <VuiButton
-                color="error"
-                size="small"
-                onClick={() => setShowCopyToast(false)}
-                sx={{ minWidth: "auto", p: 0.5 }}
-              >
-                <IoClose size="18px" />
-              </VuiButton>
-            }
-          >
-            Link copied to clipboard!
-          </Alert>
-        </Snackbar>
-      </VuiBox>
-    </Card>
+          Link copied to clipboard!
+        </Alert>
+      </Snackbar>
+    </VuiBox>
   );
 }
 
