@@ -158,12 +158,22 @@ export default styled(InputBase)(({ theme, ownerState }) => {
   };
 
   return {
-    backgroundColor: disabled ? `${grey[200]} !important` : white.main,
+    backgroundColor: "#2B2B2B !important",
     pointerEvents: disabled ? "none" : "auto",
-    backgroundColor: `${disabled ? grey[600] : "#2B2B2B"} !important`,
-    color: `#FFFFFF !important`,
+    color: "#FFFFFF !important",
     borderRadius: borderRadius.lg,
-    border: `0.5px solid #2B2B2B`,
+    border: "none",
+    "& input": {
+      backgroundColor: "#2B2B2B !important",
+      color: "#FFFFFF !important",
+    },
+    "& .MuiInputBase-input": {
+      backgroundColor: "#2B2B2B !important",
+    },
+    "& fieldset": {
+      border: "none !important",
+      backgroundColor: "#2B2B2B !important",
+    },
     ...(size === "small" && smallStyles()),
     ...(size === "medium" && mediumStyles()),
     ...(size === "large" && largeStyles()),
