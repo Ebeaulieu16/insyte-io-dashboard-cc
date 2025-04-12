@@ -32,9 +32,42 @@ export const funnelChartOptions = {
     toolbar: {
       show: false,
     },
+    background: '#0A0A0A',
+    foreColor: '#fff',
+    animations: {
+      enabled: true,
+    },
+    events: {
+      mounted: function(chartContext, config) {
+        // Add custom CSS to hide connector shapes
+        const style = document.createElement('style');
+        style.innerHTML = `
+          .apexcharts-bar-connector { 
+            fill: transparent !important;
+            stroke: transparent !important;
+            opacity: 0 !important;
+          }
+          .apexcharts-funnel-connector { 
+            fill: transparent !important;
+            stroke: transparent !important;
+            opacity: 0 !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
   },
   tooltip: {
     theme: "dark",
+  },
+  theme: {
+    mode: 'dark',
+    palette: 'palette1',
+    monochrome: {
+      enabled: false,
+      shadeTo: 'dark',
+      shadeIntensity: 0
+    }
   },
   plotOptions: {
     bar: {
@@ -43,6 +76,22 @@ export const funnelChartOptions = {
       distributed: true,
       barHeight: '80%',
       isFunnel: true,
+    },
+  },
+  fill: {
+    opacity: 1,
+    type: 'solid'
+  },
+  states: {
+    hover: {
+      filter: {
+        type: 'none',
+      }
+    },
+    active: {
+      filter: {
+        type: 'none',
+      }
     },
   },
   colors: [
@@ -66,14 +115,6 @@ export const funnelChartOptions = {
       fontFamily: 'Plus Jakarta Display',
       fontWeight: 'bold',
     },
-  },
-  states: {
-    hover: {
-      filter: {
-        type: 'darken',
-        value: 0.15,
-      }
-    }
   },
   xaxis: {
     categories: ['Leads', 'Booked Calls', 'Showed Up', 'Live Calls', 'Deals Closed'],
