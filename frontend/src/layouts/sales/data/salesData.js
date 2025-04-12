@@ -46,11 +46,11 @@ export const funnelChartOptions = {
     },
   },
   colors: [
-    '#FF8700', // Leads - Brand base
-    '#FF8F26', // Booked Calls - Slightly lighter
-    '#FF9F40', // Showed Up - Softer orange
-    '#FFAA5A', // Live Calls - Smooth transition
-    '#FFC180', // Deals Closed - Warm & light at bottom
+    '#FF8700', // Leads (top) - lightest
+    '#FF7D00', 
+    '#FF7000',
+    '#FF6300',
+    '#FF4E00'  // Deals Closed (bottom) - darkest
   ],
   dataLabels: {
     enabled: true,
