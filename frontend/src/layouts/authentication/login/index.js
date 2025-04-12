@@ -11,7 +11,7 @@ import LoginForm from "layouts/authentication/components/LoginForm";
 function Login() {
   return (
     <CoverLayout
-      title="Welcome back"
+      title={<VuiTypography color="primary">Welcome back</VuiTypography>}
       description="Enter your email and password to sign in"
       button={{ color: "info", variant: "gradient" }}
     >

@@ -26,8 +26,8 @@ function CoverLayout({ color, header, title, description, image, button, childre
         justifyContent="center"
         alignItems="center"
         sx={{
-          backgroundColor: "#0f1535",
-          backgroundImage: "linear-gradient(310deg, #141727 0%, #3a416f 100%)",
+          backgroundColor: "#0A0A0A",
+          backgroundImage: "none",
         }}
       >
         <Grid 
@@ -38,7 +38,7 @@ function CoverLayout({ color, header, title, description, image, button, childre
           sx={{ height: "100%" }}
         >
           <Grid item xs={11} sm={9} md={7} lg={5} xl={4}>
-            <Card>
+            <Card sx={{ backgroundColor: "#1A1A1A" }}>
               <VuiBox
                 display="flex"
                 flexDirection="column"

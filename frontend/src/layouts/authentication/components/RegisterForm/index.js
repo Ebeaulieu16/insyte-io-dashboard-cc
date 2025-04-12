@@ -76,7 +76,7 @@ function RegisterForm() {
               <VuiTypography
                 component="label"
                 variant="button"
-                color="white"
+                color="primary"
                 fontWeight="medium"
               >
                 Email
@@ -95,7 +95,7 @@ function RegisterForm() {
               <VuiTypography
                 component="label"
                 variant="button"
-                color="white"
+                color="primary"
                 fontWeight="medium"
               >
                 Password
@@ -114,7 +114,7 @@ function RegisterForm() {
               <VuiTypography
                 component="label"
                 variant="button"
-                color="white"
+                color="primary"
                 fontWeight="medium"
               >
                 Confirm Password
