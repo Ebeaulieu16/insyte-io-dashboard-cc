@@ -181,15 +181,16 @@ export default styled(InputBase)(({ theme, ownerState }) => {
     ...(success && successStyles()),
     ...((iconDirection === "left" || iconDirection === "right") && withIconStyles()),
     "& ::placeholder": {
-      color: `#B0B0B0 !important`,
-      fontSize: "12px",
+      color: "#656565 !important",
+      fontSize: "14px",
+      opacity: 1,
     },
 
     "&.Mui-focused": {
-      borderColor: focusedBorderColorValue,
+      borderColor: "#2B2B2B",
       paddingLeft: focusedPaddingLeftValue,
       paddingRight: focusedPaddingRightValue,
-      boxShadow: focusedBoxShadowValue,
+      boxShadow: "none",
       outline: 0,
     },
 

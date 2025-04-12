@@ -63,7 +63,7 @@ function LoginForm() {
               <VuiTypography
                 component="label"
                 variant="button"
-                color="white"
+                color="primary"
                 fontWeight="medium"
               >
                 Email
@@ -82,7 +82,7 @@ function LoginForm() {
               <VuiTypography
                 component="label"
                 variant="button"
-                color="white"
+                color="primary"
                 fontWeight="medium"
               >
                 Password
@@ -103,9 +103,9 @@ function LoginForm() {
                   checked={rememberMe}
                   onChange={handleSetRememberMe}
                   sx={{
-                    color: "info.main",
+                    color: "primary.main",
                     "&.Mui-checked": {
-                      color: "info.main",
+                      color: "primary.main",
                     },
                   }}
                 />
@@ -123,7 +123,7 @@ function LoginForm() {
           </VuiBox>
           <VuiBox mt={4} mb={1}>
             <VuiButton
-              color="info"
+              color="primary"
               fullWidth
               type="submit"
               disabled={isLoading}
@@ -138,7 +138,7 @@ function LoginForm() {
                 component={Link}
                 to="/authentication/register"
                 variant="button"
-                color="info"
+                color="primary"
                 fontWeight="medium"
               >
                 Sign up

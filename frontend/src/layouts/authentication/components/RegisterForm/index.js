@@ -135,9 +135,9 @@ function RegisterForm() {
                   checked={agreement}
                   onChange={handleSetAgreement}
                   sx={{
-                    color: "info.main",
+                    color: "primary.main",
                     "&.Mui-checked": {
-                      color: "info.main",
+                      color: "primary.main",
                     },
                   }}
                 />
@@ -153,7 +153,7 @@ function RegisterForm() {
                     component={Link}
                     to="#"
                     variant="button"
-                    color="info"
+                    color="primary"
                     fontWeight="medium"
                   >
                     Terms and Conditions
@@ -164,7 +164,7 @@ function RegisterForm() {
           </VuiBox>
           <VuiBox mt={4} mb={1}>
             <VuiButton
-              color="info"
+              color="primary"
               fullWidth
               type="submit"
               disabled={isLoading}
@@ -179,7 +179,7 @@ function RegisterForm() {
                 component={Link}
                 to="/authentication/login"
                 variant="button"
-                color="info"
+                color="primary"
                 fontWeight="medium"
               >
                 Sign in
