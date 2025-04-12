@@ -26,8 +26,10 @@ function CoverLayout({ color, header, title, description, image, button, childre
         justifyContent="center"
         alignItems="center"
         sx={{
-          backgroundColor: "#0A0A0A",
-          backgroundImage: "none",
+          backgroundColor: "#0A0A0A !important",
+          backgroundImage: "none !important",
+          position: "relative",
+          zIndex: 1,
         }}
       >
         <Grid 

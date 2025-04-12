@@ -46,8 +46,10 @@ function PageLayout({ children }) {
       minHeight="100vh"
       sx={{
         overflowX: "hidden",
-        backgroundColor: "#0A0A0A",
+        backgroundColor: "#0A0A0A !important",
+        backgroundImage: "none !important",
         position: "relative",
+        zIndex: 1,
       }}
     >
       {children}
