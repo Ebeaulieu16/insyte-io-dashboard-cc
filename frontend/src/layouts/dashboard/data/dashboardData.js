@@ -183,7 +183,7 @@ export const revenueBarChartOptions = {
     show: false,
   },
   fill: {
-    colors: "#fff",
+    colors: "#FF8700",
   },
   dataLabels: {
     enabled: false,
