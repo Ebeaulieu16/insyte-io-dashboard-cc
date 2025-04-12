@@ -50,7 +50,16 @@ function CoverLayout({ color, header, title, description, image, button, childre
               >
                 {header}
                 <VuiBox mt={2} mb={2} textAlign="center">
-                  <VuiTypography variant="h2" fontWeight="bold" color="primary" textGradient>
+                  <VuiTypography 
+                    variant="h2" 
+                    fontWeight="bold" 
+                    sx={{
+                      backgroundImage: "linear-gradient(90deg, #FF8700, #FFA94D)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      display: "inline-block"
+                    }}
+                  >
                     {title}
                   </VuiTypography>
                   <VuiTypography variant="body2" color="text" mb={2}>

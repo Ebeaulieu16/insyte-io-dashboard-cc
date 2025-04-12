@@ -44,16 +44,11 @@ function PageLayout({ children }) {
       maxWidth="100%"
       height="100%"
       minHeight="100vh"
-      sx={({ functions: { tripleLinearGradient }, palette: { gradients } }) => ({
+      sx={{
         overflowX: "hidden",
-        backgroundImage: tripleLinearGradient(
-          gradients.cover.main,
-          gradients.cover.state,
-          gradients.cover.stateSecondary,
-          gradients.cover.deg
-        ),
+        backgroundColor: "#0A0A0A",
         position: "relative",
-      })}
+      }}
     >
       {children}
     </VuiBox>
