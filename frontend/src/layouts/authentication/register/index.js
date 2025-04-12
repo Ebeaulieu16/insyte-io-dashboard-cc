@@ -6,7 +6,7 @@ import VuiTypography from "components/VuiTypography";
 function Register() {
   return (
     <CoverLayout
-      title={<VuiTypography color="primary">Join Insyte Dashboard</VuiTypography>}
+      title="Join Insyte Dashboard"
       description="Create an account to track and analyze your performance metrics."
       button={{ color: "info", variant: "gradient" }}
     >

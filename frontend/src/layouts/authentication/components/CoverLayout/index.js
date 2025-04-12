@@ -50,7 +50,7 @@ function CoverLayout({ color, header, title, description, image, button, childre
               >
                 {header}
                 <VuiBox mt={2} mb={2} textAlign="center">
-                  <VuiTypography variant="h2" fontWeight="bold" color="white" textGradient>
+                  <VuiTypography variant="h2" fontWeight="bold" color="primary" textGradient>
                     {title}
                   </VuiTypography>
                   <VuiTypography variant="body2" color="text" mb={2}>
