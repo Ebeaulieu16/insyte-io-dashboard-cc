@@ -89,11 +89,26 @@ function RegisterForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               sx={{
+                backgroundColor: "#2B2B2B !important",
+                border: "none !important",
                 "& input": {
-                  color: "#FFFFFF !important"
+                  color: "#FFFFFF !important",
+                  backgroundColor: "#2B2B2B !important"
                 },
                 "& ::placeholder": {
-                  color: "#656565 !important"
+                  color: "#656565 !important",
+                  fontSize: "14px !important",
+                  opacity: "1 !important"
+                },
+                "& .MuiInputBase-input": {
+                  backgroundColor: "#2B2B2B !important"
+                },
+                "& fieldset": {
+                  border: "none !important"
+                },
+                "&.Mui-focused": {
+                  boxShadow: "none !important",
+                  border: "none !important"
                 }
               }}
             />
@@ -116,11 +131,26 @@ function RegisterForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               sx={{
+                backgroundColor: "#2B2B2B !important",
+                border: "none !important",
                 "& input": {
-                  color: "#FFFFFF !important"
+                  color: "#FFFFFF !important",
+                  backgroundColor: "#2B2B2B !important"
                 },
                 "& ::placeholder": {
-                  color: "#656565 !important"
+                  color: "#656565 !important",
+                  fontSize: "14px !important",
+                  opacity: "1 !important"
+                },
+                "& .MuiInputBase-input": {
+                  backgroundColor: "#2B2B2B !important"
+                },
+                "& fieldset": {
+                  border: "none !important"
+                },
+                "&.Mui-focused": {
+                  boxShadow: "none !important",
+                  border: "none !important"
                 }
               }}
             />
@@ -143,11 +173,26 @@ function RegisterForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               sx={{
+                backgroundColor: "#2B2B2B !important",
+                border: "none !important",
                 "& input": {
-                  color: "#FFFFFF !important"
+                  color: "#FFFFFF !important",
+                  backgroundColor: "#2B2B2B !important"
                 },
                 "& ::placeholder": {
-                  color: "#656565 !important"
+                  color: "#656565 !important",
+                  fontSize: "14px !important",
+                  opacity: "1 !important"
+                },
+                "& .MuiInputBase-input": {
+                  backgroundColor: "#2B2B2B !important"
+                },
+                "& fieldset": {
+                  border: "none !important"
+                },
+                "&.Mui-focused": {
+                  boxShadow: "none !important",
+                  border: "none !important"
                 }
               }}
             />

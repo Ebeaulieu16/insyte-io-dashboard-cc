@@ -158,22 +158,20 @@ export default styled(InputBase)(({ theme, ownerState }) => {
   };
 
   return {
-    backgroundColor: "#2B2B2B !important",
+    backgroundColor: disabled ? `${grey[200]} !important` : white.main,
     pointerEvents: disabled ? "none" : "auto",
-    color: "#FFFFFF !important",
+    backgroundColor: `${disabled ? grey[600] : inputColors.backgroundColor} !important`,
+    color: `${white.main} !important`,
     borderRadius: borderRadius.lg,
-    border: "none",
+    border: `0.5px solid ${grey[600]}`,
     "& input": {
-      backgroundColor: "#2B2B2B !important",
-      color: "#FFFFFF !important",
+      backgroundColor: inputColors.backgroundColor,
     },
     "& .MuiInputBase-input": {
-      backgroundColor: "#2B2B2B !important",
-      color: "#FFFFFF !important",
+      backgroundColor: inputColors.backgroundColor,
     },
     "& fieldset": {
-      border: "none !important",
-      backgroundColor: "#2B2B2B !important",
+      border: `0.5px solid ${grey[600]}`,
     },
     ...(size === "small" && smallStyles()),
     ...(size === "medium" && mediumStyles()),
@@ -182,27 +180,14 @@ export default styled(InputBase)(({ theme, ownerState }) => {
     ...(success && successStyles()),
     ...((iconDirection === "left" || iconDirection === "right") && withIconStyles()),
     "& ::placeholder": {
-      color: "#656565 !important",
-      fontSize: "14px !important",
-      opacity: "1 !important",
-    },
-    "& ::-webkit-input-placeholder": { /* Chrome/Opera/Safari */
-      color: "#656565 !important",
-      fontSize: "14px !important",
-    },
-    "& ::-moz-placeholder": { /* Firefox 19+ */
-      color: "#656565 !important",
-      fontSize: "14px !important",
-    },
-    "& :-ms-input-placeholder": { /* IE 10+ */
-      color: "#656565 !important",
-      fontSize: "14px !important",
+      color: `${white.main} !important`,
+      fontSize: "12px",
     },
     "&.Mui-focused": {
-      borderColor: "#2B2B2B",
+      borderColor: focusedBorderColorValue,
       paddingLeft: focusedPaddingLeftValue,
       paddingRight: focusedPaddingRightValue,
-      boxShadow: "none",
+      boxShadow: focusedBoxShadowValue,
       outline: 0,
     },
 
