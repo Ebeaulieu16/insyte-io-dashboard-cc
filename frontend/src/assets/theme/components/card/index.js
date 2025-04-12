@@ -35,8 +35,7 @@ export default {
     root: {
       display: "flex",
       flexDirection: "column",
-      background: linearGradient(card.main, card.state, card.deg),
-      backdropFilter: "blur(120px)",
+      background: "#1A1A1A",
       position: "relative",
       minWidth: 0,
       padding: "22px",
@@ -44,7 +43,7 @@ export default {
       backgroundClip: "border-box",
       border: `${borderWidth[0]} solid ${rgba(black.main, 0.125)}`,
       borderRadius: borderRadius.xl,
-      boxShadow: xxl,
+      boxShadow: "none",
     },
   },
 };
