@@ -54,7 +54,7 @@ function CoverLayout({ color, header, title, description, image, button, childre
                     variant="h2" 
                     fontWeight="bold" 
                     sx={{
-                      backgroundImage: "linear-gradient(90deg, #FF8700, #FFA94D)",
+                      backgroundImage: "linear-gradient(90deg, rgba(255, 135, 0, 1) 60%, rgba(255, 78, 0, 1) 100%)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       display: "inline-block"
