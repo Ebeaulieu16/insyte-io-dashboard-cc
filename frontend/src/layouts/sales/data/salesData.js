@@ -32,7 +32,7 @@ export const funnelChartOptions = {
     toolbar: {
       show: false,
     },
-    background: '#0A0A0A',
+    background: 'transparent',
     foreColor: '#fff',
     animations: {
       enabled: true,
@@ -144,6 +144,7 @@ export const donutChartData = [62, 38];
 export const donutChartOptions = {
   chart: {
     type: 'donut',
+    background: 'transparent',
   },
   colors: ['#FF8700', '#FF4E00'], // Closed Deals (FF8700), Lost Opportunities (FF4E00)
   labels: ['Closed Deals', 'Lost Opportunities'],
