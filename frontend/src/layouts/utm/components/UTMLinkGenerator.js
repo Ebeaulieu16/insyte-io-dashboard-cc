@@ -238,6 +238,29 @@ function UTMLinkGenerator({ onSuccess }) {
                   onChange={handleDestinationUrlChange}
                   error={!!errors.destinationUrl}
                   success={destinationUrl && !errors.destinationUrl}
+                  sx={{
+                    backgroundColor: "#2B2B2B !important",
+                    border: "none !important",
+                    "& input": {
+                      color: "#FFFFFF !important",
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& ::placeholder": {
+                      color: "#656565 !important",
+                      fontSize: "14px !important",
+                      opacity: "1 !important"
+                    },
+                    "& .MuiInputBase-input": {
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& fieldset": {
+                      border: "none !important"
+                    },
+                    "&.Mui-focused": {
+                      boxShadow: "none !important",
+                      border: "none !important"
+                    }
+                  }}
                 />
                 {errors.destinationUrl && (
                   <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
@@ -258,6 +281,29 @@ function UTMLinkGenerator({ onSuccess }) {
                   onChange={handleTitleChange}
                   error={!!errors.title}
                   success={title && !errors.title}
+                  sx={{
+                    backgroundColor: "#2B2B2B !important",
+                    border: "none !important",
+                    "& input": {
+                      color: "#FFFFFF !important",
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& ::placeholder": {
+                      color: "#656565 !important",
+                      fontSize: "14px !important",
+                      opacity: "1 !important"
+                    },
+                    "& .MuiInputBase-input": {
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& fieldset": {
+                      border: "none !important"
+                    },
+                    "&.Mui-focused": {
+                      boxShadow: "none !important",
+                      border: "none !important"
+                    }
+                  }}
                 />
                 {errors.title && (
                   <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
@@ -278,6 +324,29 @@ function UTMLinkGenerator({ onSuccess }) {
                   onChange={handleSlugChange}
                   error={!!errors.slug}
                   success={slug && !errors.slug}
+                  sx={{
+                    backgroundColor: "#2B2B2B !important",
+                    border: "none !important",
+                    "& input": {
+                      color: "#FFFFFF !important",
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& ::placeholder": {
+                      color: "#656565 !important",
+                      fontSize: "14px !important",
+                      opacity: "1 !important"
+                    },
+                    "& .MuiInputBase-input": {
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& fieldset": {
+                      border: "none !important"
+                    },
+                    "&.Mui-focused": {
+                      boxShadow: "none !important",
+                      border: "none !important"
+                    }
+                  }}
                 />
                 {errors.slug ? (
                   <VuiTypography component="div" variant="button" color="error" fontWeight="regular" mt={0.5}>
@@ -302,12 +371,15 @@ function UTMLinkGenerator({ onSuccess }) {
                   value={utmSource}
                   onChange={(e) => setUtmSource(e.target.value)}
                   style={{
-                    backgroundColor: "#0f1535",
+                    backgroundColor: "#2B2B2B",
                     color: "white",
-                    padding: "10px",
-                    border: "1px solid #2d41a9",
+                    padding: "12px",
+                    border: "none",
                     borderRadius: "10px",
                     width: "100%",
+                    outline: "none",
+                    appearance: "menulist-button",
+                    fontSize: "14px"
                   }}
                 >
                   {sourceOptions.map((option) => (
@@ -327,12 +399,15 @@ function UTMLinkGenerator({ onSuccess }) {
                   value={utmMedium}
                   onChange={(e) => setUtmMedium(e.target.value)}
                   style={{
-                    backgroundColor: "#0f1535",
+                    backgroundColor: "#2B2B2B",
                     color: "white",
-                    padding: "10px",
-                    border: "1px solid #2d41a9",
+                    padding: "12px",
+                    border: "none",
                     borderRadius: "10px",
                     width: "100%",
+                    outline: "none",
+                    appearance: "menulist-button",
+                    fontSize: "14px"
                   }}
                 >
                   {mediumOptions.map((option) => (
@@ -353,6 +428,29 @@ function UTMLinkGenerator({ onSuccess }) {
                   placeholder="e.g., webinar-sales"
                   value={utmCampaign}
                   onChange={(e) => setUtmCampaign(e.target.value)}
+                  sx={{
+                    backgroundColor: "#2B2B2B !important",
+                    border: "none !important",
+                    "& input": {
+                      color: "#FFFFFF !important",
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& ::placeholder": {
+                      color: "#656565 !important",
+                      fontSize: "14px !important",
+                      opacity: "1 !important"
+                    },
+                    "& .MuiInputBase-input": {
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& fieldset": {
+                      border: "none !important"
+                    },
+                    "&.Mui-focused": {
+                      boxShadow: "none !important",
+                      border: "none !important"
+                    }
+                  }}
                 />
                 <VuiTypography component="div" variant="caption" color="text" fontWeight="regular" mt={0.5}>
                   Used for paid campaigns (keywords)
@@ -369,6 +467,29 @@ function UTMLinkGenerator({ onSuccess }) {
                   placeholder="content-description"
                   value={utmContent}
                   onChange={(e) => setUtmContent(e.target.value)}
+                  sx={{
+                    backgroundColor: "#2B2B2B !important",
+                    border: "none !important",
+                    "& input": {
+                      color: "#FFFFFF !important",
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& ::placeholder": {
+                      color: "#656565 !important",
+                      fontSize: "14px !important",
+                      opacity: "1 !important"
+                    },
+                    "& .MuiInputBase-input": {
+                      backgroundColor: "#2B2B2B !important"
+                    },
+                    "& fieldset": {
+                      border: "none !important"
+                    },
+                    "&.Mui-focused": {
+                      boxShadow: "none !important",
+                      border: "none !important"
+                    }
+                  }}
                 />
                 <VuiTypography component="div" variant="caption" color="text" fontWeight="regular" mt={0.5}>
                   Used to differentiate versions of similar content
