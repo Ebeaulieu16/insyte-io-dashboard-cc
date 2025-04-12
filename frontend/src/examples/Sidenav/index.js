@@ -246,7 +246,7 @@ function Sidenav({ color, brandName, routes, ...rest }) {
           <VuiButton
             component="button"
             onClick={handleLogout}
-            variant="gradient"
+            variant="contained"
             color="primary"
             fullWidth
             sx={{
