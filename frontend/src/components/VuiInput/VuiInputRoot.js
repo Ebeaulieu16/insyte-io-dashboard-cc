@@ -160,10 +160,10 @@ export default styled(InputBase)(({ theme, ownerState }) => {
   return {
     backgroundColor: disabled ? `${grey[200]} !important` : white.main,
     pointerEvents: disabled ? "none" : "auto",
-    backgroundColor: `${disabled ? grey[600] : inputColors.backgroundColor} !important`,
+    backgroundColor: `${disabled ? grey[600] : "#2B2B2B"} !important`,
     color: `${white.main} !important`,
     borderRadius: borderRadius.lg,
-    border: `0.5px solid ${grey[600]}`,
+    border: `0.5px solid #2B2B2B`,
     ...(size === "small" && smallStyles()),
     ...(size === "medium" && mediumStyles()),
     ...(size === "large" && largeStyles()),
