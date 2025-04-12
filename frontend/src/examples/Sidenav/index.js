@@ -247,7 +247,7 @@ function Sidenav({ color, brandName, routes, ...rest }) {
             component="button"
             onClick={handleLogout}
             variant="gradient"
-            color="info"
+            color="primary"
             fullWidth
             sx={{
               display: "flex",
