@@ -46,11 +46,11 @@ export const funnelChartOptions = {
     },
   },
   colors: [
-    '#0075FF',
-    '#2CD9FF',
-    '#4FD1C5',
-    '#01B574',
-    '#16f9aa',
+    '#FF8700', // Leads - Brand base
+    '#FF8F26', // Booked Calls - Slightly lighter
+    '#FF9F40', // Showed Up - Softer orange
+    '#FFAA5A', // Live Calls - Smooth transition
+    '#FFC180', // Deals Closed - Warm & light at bottom
   ],
   dataLabels: {
     enabled: true,
@@ -104,7 +104,7 @@ export const donutChartOptions = {
   chart: {
     type: 'donut',
   },
-  colors: ['#0075FF', '#2D2E5F'],
+  colors: ['#FF8700', '#FF4E00'], // Closed Deals (FF8700), Lost Opportunities (FF4E00)
   labels: ['Closed Deals', 'Lost Opportunities'],
   plotOptions: {
     pie: {
