@@ -109,21 +109,6 @@ const StyledTable = styled(Table)(({ theme }) => ({
   }
 }));
 
-// Global style to override MUI defaults
-import { createGlobalStyle } from 'styled-components';
-
-const GlobalTableStyle = createGlobalStyle`
-  .MuiTableContainer-root,
-  .MuiTable-root,
-  .MuiTableHead-root,
-  .MuiTableBody-root,
-  .MuiTableRow-root,
-  .MuiTableCell-root {
-    background-color: transparent !important;
-    border-bottom: none !important;
-  }
-`;
-
 function UTMLinkTable({ dateRange }) {
   const history = useHistory();
   const [links, setLinks] = useState([]);
@@ -289,7 +274,6 @@ function UTMLinkTable({ dateRange }) {
   if (filteredLinks.length === 0) {
     return (
       <VuiBox>
-        <GlobalTableStyle />
         <VuiBox mb={2} display="flex" justifyContent="flex-end">
           <Search>
             <SearchIconWrapper>
@@ -317,7 +301,6 @@ function UTMLinkTable({ dateRange }) {
 
   return (
     <VuiBox>
-      <GlobalTableStyle />
       <VuiBox mb={2} display="flex" justifyContent="flex-end">
         <Search>
           <SearchIconWrapper>
